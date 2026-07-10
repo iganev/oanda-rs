@@ -2,16 +2,38 @@
 name = "oanda-rs"
 version = "0.1.0"
 edition = "2024"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+rust-version = "1.85"
+license = "BSD-3-Clause"
+description = "Async Rust SDK for the OANDA v20 REST and streaming API"
+repository = "https://github.com/iganev/oanda-rs"
+documentation = "https://docs.rs/oanda-rs"
+readme = "README.md"
+keywords = ["oanda", "forex", "trading", "fx", "api"]
+categories = ["api-bindings", "asynchronous"]
+exclude = ["schema/", ".github/", "docs/"]
 
 [dependencies]
-futures = "0.3"
+reqwest = { version = "0.13", features = ["json", "stream", "query"] }
+serde = { version = "1.0.181", features = ["derive"] }
+serde_json = "1"
+bytes = "1"
 futures-core = "0.3"
-bytes = "1.5"
-percent-encoding = "2.3.1"
-reqwest = { version = "0.13", features = ["json", "stream"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0" }
-serde_urlencoded = "0.7"
-chrono = { version = "0.4", features = ["serde"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+thiserror = "2"
+rust_decimal = { version = "1", features = ["serde"] }
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+tokio = { version = "1", default-features = false, features = ["time", "sync"] }
+tracing = { version = "0.1", optional = true }
+
+[features]
+default = []
+tracing = ["dep:tracing"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "test-util"] }
+wiremock = "0.6"
+dotenvy = "0.15"
+futures = "0.3"
+
+[package.metadata.docs.rs]
+all-features = true

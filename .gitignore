@@ -29,6 +29,12 @@ oanda-rs.iml
 # Tarpaulin
 tarpaulin-report.html
 
+# Coverage
+lcov.info
+
+# Secrets
+.env
+
 
 # Added by cargo
 #

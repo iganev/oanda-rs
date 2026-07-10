@@ -1,0 +1,446 @@
+[
+ {
+  "id": "6789",
+  "createTime": "2024-06-14T12:00:00.000000000Z",
+  "state": "PENDING",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "type": "MARKET",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "timeInForce": "GTC",
+  "priceBound": "1.2500",
+  "positionFill": "OPEN_ONLY",
+  "tradeClose": {
+   "tradeID": "6789",
+   "clientTradeID": "test-clientTradeID",
+   "units": "test-units"
+  },
+  "longPositionCloseout": {
+   "instrument": "EUR_USD",
+   "units": "test-units"
+  },
+  "shortPositionCloseout": {
+   "instrument": "EUR_USD",
+   "units": "test-units"
+  },
+  "marginCloseout": {
+   "reason": "MARGIN_CHECK_VIOLATION"
+  },
+  "delayedTradeClose": {
+   "tradeID": "6789",
+   "clientTradeID": "6789",
+   "sourceTransactionID": "6789"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "fillingTransactionID": "6789",
+  "filledTime": "2024-06-14T12:00:00.000000000Z",
+  "tradeOpenedID": "6789",
+  "tradeReducedID": "6789",
+  "tradeClosedIDs": [
+   "6789"
+  ],
+  "cancellingTransactionID": "6789",
+  "cancelledTime": "2024-06-14T12:00:00.000000000Z"
+ },
+ {
+  "id": "6789",
+  "createTime": "2024-06-14T12:00:00.000000000Z",
+  "state": "PENDING",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "type": "LIMIT",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "positionFill": "OPEN_ONLY",
+  "triggerCondition": "DEFAULT",
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "fillingTransactionID": "6789",
+  "filledTime": "2024-06-14T12:00:00.000000000Z",
+  "tradeOpenedID": "6789",
+  "tradeReducedID": "6789",
+  "tradeClosedIDs": [
+   "6789"
+  ],
+  "cancellingTransactionID": "6789",
+  "cancelledTime": "2024-06-14T12:00:00.000000000Z",
+  "replacesOrderID": "6789",
+  "replacedByOrderID": "6789",
+  "partialFill": "test-partialFill"
+ },
+ {
+  "id": "6789",
+  "createTime": "2024-06-14T12:00:00.000000000Z",
+  "state": "PENDING",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "type": "STOP",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "priceBound": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "positionFill": "OPEN_ONLY",
+  "triggerCondition": "DEFAULT",
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "fillingTransactionID": "6789",
+  "filledTime": "2024-06-14T12:00:00.000000000Z",
+  "tradeOpenedID": "6789",
+  "tradeReducedID": "6789",
+  "tradeClosedIDs": [
+   "6789"
+  ],
+  "cancellingTransactionID": "6789",
+  "cancelledTime": "2024-06-14T12:00:00.000000000Z",
+  "replacesOrderID": "6789",
+  "replacedByOrderID": "6789",
+  "partialFill": "test-partialFill",
+  "triggerMode": "test-triggerMode"
+ },
+ {
+  "id": "6789",
+  "createTime": "2024-06-14T12:00:00.000000000Z",
+  "state": "PENDING",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "type": "MARKET_IF_TOUCHED",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "priceBound": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "positionFill": "OPEN_ONLY",
+  "triggerCondition": "DEFAULT",
+  "initialMarketPrice": "1.2500",
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "fillingTransactionID": "6789",
+  "filledTime": "2024-06-14T12:00:00.000000000Z",
+  "tradeOpenedID": "6789",
+  "tradeReducedID": "6789",
+  "tradeClosedIDs": [
+   "6789"
+  ],
+  "cancellingTransactionID": "6789",
+  "cancelledTime": "2024-06-14T12:00:00.000000000Z",
+  "replacesOrderID": "6789",
+  "replacedByOrderID": "6789",
+  "partialFill": "test-partialFill"
+ },
+ {
+  "id": "6789",
+  "createTime": "2024-06-14T12:00:00.000000000Z",
+  "state": "PENDING",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "type": "TAKE_PROFIT",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "price": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "triggerCondition": "DEFAULT",
+  "fillingTransactionID": "6789",
+  "filledTime": "2024-06-14T12:00:00.000000000Z",
+  "tradeOpenedID": "6789",
+  "tradeReducedID": "6789",
+  "tradeClosedIDs": [
+   "6789"
+  ],
+  "cancellingTransactionID": "6789",
+  "cancelledTime": "2024-06-14T12:00:00.000000000Z",
+  "replacesOrderID": "6789",
+  "replacedByOrderID": "6789"
+ },
+ {
+  "id": "6789",
+  "createTime": "2024-06-14T12:00:00.000000000Z",
+  "state": "PENDING",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "type": "STOP_LOSS",
+  "guaranteedExecutionPremium": "1.2500",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "price": "1.2500",
+  "distance": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "triggerCondition": "DEFAULT",
+  "guaranteed": true,
+  "fillingTransactionID": "6789",
+  "filledTime": "2024-06-14T12:00:00.000000000Z",
+  "tradeOpenedID": "6789",
+  "tradeReducedID": "6789",
+  "tradeClosedIDs": [
+   "6789"
+  ],
+  "cancellingTransactionID": "6789",
+  "cancelledTime": "2024-06-14T12:00:00.000000000Z",
+  "replacesOrderID": "6789",
+  "replacedByOrderID": "6789",
+  "triggerMode": "test-triggerMode"
+ },
+ {
+  "id": "6789",
+  "createTime": "2024-06-14T12:00:00.000000000Z",
+  "state": "PENDING",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "type": "TRAILING_STOP_LOSS",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "distance": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "triggerCondition": "DEFAULT",
+  "trailingStopValue": "1.2500",
+  "fillingTransactionID": "6789",
+  "filledTime": "2024-06-14T12:00:00.000000000Z",
+  "tradeOpenedID": "6789",
+  "tradeReducedID": "6789",
+  "tradeClosedIDs": [
+   "6789"
+  ],
+  "cancellingTransactionID": "6789",
+  "cancelledTime": "2024-06-14T12:00:00.000000000Z",
+  "replacesOrderID": "6789",
+  "replacedByOrderID": "6789"
+ },
+ {
+  "id": "6789",
+  "createTime": "2024-06-14T12:00:00.000000000Z",
+  "state": "PENDING",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "type": "FIXED_PRICE",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "positionFill": "OPEN_ONLY",
+  "tradeState": "OPEN",
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "fillingTransactionID": "6789",
+  "filledTime": "2024-06-14T12:00:00.000000000Z",
+  "tradeOpenedID": "6789",
+  "tradeReducedID": "6789",
+  "tradeClosedIDs": [
+   "6789"
+  ],
+  "cancellingTransactionID": "6789",
+  "cancelledTime": "2024-06-14T12:00:00.000000000Z"
+ }
+]

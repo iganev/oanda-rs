@@ -1,0 +1,1176 @@
+[
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "CREATE",
+  "divisionID": 1234567,
+  "siteID": 1234567,
+  "accountUserID": 1234567,
+  "accountNumber": 1234567,
+  "homeCurrency": "EUR"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "CLOSE"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "REOPEN"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "CLIENT_CONFIGURE",
+  "alias": "test-alias",
+  "marginRate": "1.2500"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "CLIENT_CONFIGURE_REJECT",
+  "alias": "test-alias",
+  "marginRate": "1.2500",
+  "rejectReason": "INTERNAL_SERVER_ERROR"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "TRANSFER_FUNDS",
+  "amount": "1.2500",
+  "fundingReason": "CLIENT_FUNDING",
+  "comment": "test-comment",
+  "accountBalance": "1.2500"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "TRANSFER_FUNDS_REJECT",
+  "amount": "1.2500",
+  "fundingReason": "CLIENT_FUNDING",
+  "comment": "test-comment",
+  "rejectReason": "INTERNAL_SERVER_ERROR"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "MARKET_ORDER",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "timeInForce": "GTC",
+  "priceBound": "1.2500",
+  "positionFill": "OPEN_ONLY",
+  "tradeClose": {
+   "tradeID": "6789",
+   "clientTradeID": "test-clientTradeID",
+   "units": "test-units"
+  },
+  "longPositionCloseout": {
+   "instrument": "EUR_USD",
+   "units": "test-units"
+  },
+  "shortPositionCloseout": {
+   "instrument": "EUR_USD",
+   "units": "test-units"
+  },
+  "marginCloseout": {
+   "reason": "MARGIN_CHECK_VIOLATION"
+  },
+  "delayedTradeClose": {
+   "tradeID": "6789",
+   "clientTradeID": "6789",
+   "sourceTransactionID": "6789"
+  },
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  }
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "MARKET_ORDER_REJECT",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "timeInForce": "GTC",
+  "priceBound": "1.2500",
+  "positionFill": "OPEN_ONLY",
+  "tradeClose": {
+   "tradeID": "6789",
+   "clientTradeID": "test-clientTradeID",
+   "units": "test-units"
+  },
+  "longPositionCloseout": {
+   "instrument": "EUR_USD",
+   "units": "test-units"
+  },
+  "shortPositionCloseout": {
+   "instrument": "EUR_USD",
+   "units": "test-units"
+  },
+  "marginCloseout": {
+   "reason": "MARGIN_CHECK_VIOLATION"
+  },
+  "delayedTradeClose": {
+   "tradeID": "6789",
+   "clientTradeID": "6789",
+   "sourceTransactionID": "6789"
+  },
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "rejectReason": "INTERNAL_SERVER_ERROR"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "FIXED_PRICE_ORDER",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "positionFill": "OPEN_ONLY",
+  "tradeState": "OPEN",
+  "reason": "PLATFORM_ACCOUNT_MIGRATION",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  }
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "LIMIT_ORDER",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "positionFill": "OPEN_ONLY",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "replacesOrderID": "6789",
+  "cancellingTransactionID": "6789",
+  "partialFill": "test-partialFill"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "LIMIT_ORDER_REJECT",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "positionFill": "OPEN_ONLY",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "intendedReplacesOrderID": "6789",
+  "rejectReason": "INTERNAL_SERVER_ERROR",
+  "partialFill": "test-partialFill"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "STOP_ORDER",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "priceBound": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "positionFill": "OPEN_ONLY",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "replacesOrderID": "6789",
+  "cancellingTransactionID": "6789",
+  "partialFill": "test-partialFill",
+  "triggerMode": "test-triggerMode"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "STOP_ORDER_REJECT",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "priceBound": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "positionFill": "OPEN_ONLY",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "intendedReplacesOrderID": "6789",
+  "rejectReason": "INTERNAL_SERVER_ERROR",
+  "partialFill": "test-partialFill",
+  "triggerMode": "test-triggerMode"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "MARKET_IF_TOUCHED_ORDER",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "priceBound": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "positionFill": "OPEN_ONLY",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "replacesOrderID": "6789",
+  "cancellingTransactionID": "6789",
+  "partialFill": "test-partialFill"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "MARKET_IF_TOUCHED_ORDER_REJECT",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "price": "1.2500",
+  "priceBound": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "positionFill": "OPEN_ONLY",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "takeProfitOnFill": {
+   "price": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "stopLossOnFill": {
+   "price": "1.2500",
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "guaranteed": true,
+   "triggerMode": "test-triggerMode"
+  },
+  "trailingStopLossOnFill": {
+   "distance": "1.2500",
+   "timeInForce": "GTC",
+   "gtdTime": "2024-06-14T12:00:00.000000000Z",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   }
+  },
+  "tradeClientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "intendedReplacesOrderID": "6789",
+  "rejectReason": "INTERNAL_SERVER_ERROR",
+  "partialFill": "test-partialFill"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "TAKE_PROFIT_ORDER",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "price": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "orderFillTransactionID": "6789",
+  "replacesOrderID": "6789",
+  "cancellingTransactionID": "6789"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "TAKE_PROFIT_ORDER_REJECT",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "price": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "orderFillTransactionID": "6789",
+  "intendedReplacesOrderID": "6789",
+  "rejectReason": "INTERNAL_SERVER_ERROR"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "STOP_LOSS_ORDER",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "price": "1.2500",
+  "distance": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "triggerCondition": "DEFAULT",
+  "guaranteed": true,
+  "guaranteedExecutionPremium": "1.2500",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "orderFillTransactionID": "6789",
+  "replacesOrderID": "6789",
+  "cancellingTransactionID": "6789",
+  "triggerMode": "test-triggerMode"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "STOP_LOSS_ORDER_REJECT",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "price": "1.2500",
+  "distance": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "triggerCondition": "DEFAULT",
+  "guaranteed": true,
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "orderFillTransactionID": "6789",
+  "intendedReplacesOrderID": "6789",
+  "rejectReason": "INTERNAL_SERVER_ERROR",
+  "triggerMode": "test-triggerMode"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "TRAILING_STOP_LOSS_ORDER",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "distance": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "orderFillTransactionID": "6789",
+  "replacesOrderID": "6789",
+  "cancellingTransactionID": "6789"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "TRAILING_STOP_LOSS_ORDER_REJECT",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "distance": "1.2500",
+  "timeInForce": "GTC",
+  "gtdTime": "2024-06-14T12:00:00.000000000Z",
+  "triggerCondition": "DEFAULT",
+  "reason": "CLIENT_ORDER",
+  "clientExtensions": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "orderFillTransactionID": "6789",
+  "intendedReplacesOrderID": "6789",
+  "rejectReason": "INTERNAL_SERVER_ERROR"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "ORDER_FILL",
+  "orderID": "6789",
+  "clientOrderID": "test-clientOrderID",
+  "instrument": "EUR_USD",
+  "units": "1.2500",
+  "gainQuoteHomeConversionFactor": "1.2500",
+  "lossQuoteHomeConversionFactor": "1.2500",
+  "price": "1.2500",
+  "fullVWAP": "1.2500",
+  "fullPrice": {
+   "type": "PRICE",
+   "instrument": "EUR_USD",
+   "time": "2024-06-14T12:00:00.000000000Z",
+   "status": "tradeable",
+   "tradeable": true,
+   "bids": [
+    {
+     "price": "1.2500"
+    }
+   ],
+   "asks": [
+    {
+     "price": "1.2500"
+    }
+   ],
+   "closeoutBid": "1.2500",
+   "closeoutAsk": "1.2500",
+   "quoteHomeConversionFactors": {
+    "positiveUnits": "1.2500",
+    "negativeUnits": "1.2500"
+   },
+   "unitsAvailable": {
+    "default": {},
+    "reduceFirst": {},
+    "reduceOnly": {},
+    "openOnly": {}
+   },
+   "timestamp": "2024-06-14T12:00:00.000000000Z"
+  },
+  "reason": "LIMIT_ORDER",
+  "pl": "1.2500",
+  "financing": "1.2500",
+  "commission": "1.2500",
+  "guaranteedExecutionFee": "1.2500",
+  "accountBalance": "1.2500",
+  "tradeOpened": {
+   "tradeID": "6789",
+   "units": "1.2500",
+   "price": "1.2500",
+   "guaranteedExecutionFee": "1.2500",
+   "clientExtensions": {
+    "id": "test-id",
+    "tag": "test-tag",
+    "comment": "test-comment"
+   },
+   "halfSpreadCost": "1.2500",
+   "initialMarginRequired": "1.2500",
+   "quoteGuaranteedExecutionFee": "1.2500",
+   "guaranteedExecutionFeeHomeConversionCost": "1.2500"
+  },
+  "tradesClosed": [
+   {
+    "tradeID": "6789",
+    "units": "1.2500",
+    "price": "1.2500",
+    "realizedPL": "1.2500",
+    "financing": "1.2500",
+    "guaranteedExecutionFee": "1.2500",
+    "halfSpreadCost": "1.2500",
+    "baseFinancing": "1.2500",
+    "quoteGuaranteedExecutionFee": "1.2500",
+    "financingRate": "1.2500",
+    "homeConversionCost": "1.2500",
+    "plHomeConversionCost": "1.2500",
+    "baseFinancingHomeConversionCost": "1.2500",
+    "guaranteedExecutionFeeHomeConversionCost": "1.2500"
+   }
+  ],
+  "tradeReduced": {
+   "tradeID": "6789",
+   "units": "1.2500",
+   "price": "1.2500",
+   "realizedPL": "1.2500",
+   "financing": "1.2500",
+   "guaranteedExecutionFee": "1.2500",
+   "halfSpreadCost": "1.2500",
+   "baseFinancing": "1.2500",
+   "quoteGuaranteedExecutionFee": "1.2500",
+   "financingRate": "1.2500",
+   "homeConversionCost": "1.2500",
+   "plHomeConversionCost": "1.2500",
+   "baseFinancingHomeConversionCost": "1.2500",
+   "guaranteedExecutionFeeHomeConversionCost": "1.2500"
+  },
+  "halfSpreadCost": "1.2500",
+  "requestedUnits": "1.2500",
+  "quotePL": "1.2500",
+  "baseFinancing": "1.2500",
+  "quoteGuaranteedExecutionFee": "1.2500",
+  "homeConversionFactors": {
+   "gainQuoteHome": {
+    "factor": "1.2500"
+   },
+   "lossQuoteHome": {
+    "factor": "1.2500"
+   },
+   "gainBaseHome": {
+    "factor": "1.2500"
+   },
+   "lossBaseHome": {
+    "factor": "1.2500"
+   }
+  },
+  "homeConversionCost": "1.2500",
+  "plHomeConversionCost": "1.2500",
+  "baseFinancingHomeConversionCost": "1.2500",
+  "guaranteedExecutionFeeHomeConversionCost": "1.2500"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "ORDER_CANCEL",
+  "orderID": "6789",
+  "clientOrderID": "6789",
+  "reason": "INTERNAL_SERVER_ERROR",
+  "replacedByOrderID": "6789",
+  "closedTradeID": "test-closedTradeID",
+  "tradeCloseTransactionID": "test-tradeCloseTransactionID"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "ORDER_CANCEL_REJECT",
+  "orderID": "6789",
+  "clientOrderID": "6789",
+  "rejectReason": "INTERNAL_SERVER_ERROR"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "ORDER_CLIENT_EXTENSIONS_MODIFY",
+  "orderID": "6789",
+  "clientOrderID": "test-clientOrderID",
+  "clientExtensionsModify": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "tradeClientExtensionsModify": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  }
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "ORDER_CLIENT_EXTENSIONS_MODIFY_REJECT",
+  "orderID": "6789",
+  "clientOrderID": "test-clientOrderID",
+  "clientExtensionsModify": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "tradeClientExtensionsModify": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "rejectReason": "INTERNAL_SERVER_ERROR"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "TRADE_CLIENT_EXTENSIONS_MODIFY",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "tradeClientExtensionsModify": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  }
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "TRADE_CLIENT_EXTENSIONS_MODIFY_REJECT",
+  "tradeID": "6789",
+  "clientTradeID": "test-clientTradeID",
+  "tradeClientExtensionsModify": {
+   "id": "test-id",
+   "tag": "test-tag",
+   "comment": "test-comment"
+  },
+  "rejectReason": "INTERNAL_SERVER_ERROR"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "MARGIN_CALL_ENTER"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "MARGIN_CALL_EXTEND",
+  "extensionNumber": 1234567
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "MARGIN_CALL_EXIT",
+  "reason": "test-reason"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "DELAYED_TRADE_CLOSURE",
+  "reason": "CLIENT_ORDER",
+  "tradeIDs": "6789"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "DAILY_FINANCING",
+  "financing": "1.2500",
+  "accountBalance": "1.2500",
+  "accountFinancingMode": "NO_FINANCING",
+  "positionFinancings": [
+   {
+    "instrument": "EUR_USD",
+    "financing": "1.2500",
+    "openTradeFinancings": [
+     {}
+    ],
+    "baseFinancing": "1.2500",
+    "accountFinancingMode": "NO_FINANCING",
+    "homeConversionFactors": {},
+    "homeConversionCost": "1.2500",
+    "baseHomeConversionCost": "1.2500"
+   }
+  ],
+  "homeConversionCost": "1.2500",
+  "baseHomeConversionCost": "1.2500"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "RESET_RESETTABLE_PL"
+ },
+ {
+  "id": "6789",
+  "time": "2024-06-14T12:00:00.000000000Z",
+  "userID": 1234567,
+  "accountID": "101-004-1234567-001",
+  "batchID": "6789",
+  "requestID": "test-requestID",
+  "type": "DIVIDEND_ADJUSTMENT",
+  "instrument": "test-instrument",
+  "dividendAdjustment": "1.2500",
+  "quoteDividendAdjustment": "1.2500",
+  "homeConversionFactors": {
+   "gainQuoteHome": {
+    "factor": "1.2500"
+   },
+   "lossQuoteHome": {
+    "factor": "1.2500"
+   },
+   "gainBaseHome": {
+    "factor": "1.2500"
+   },
+   "lossBaseHome": {
+    "factor": "1.2500"
+   }
+  },
+  "accountBalance": "1.2500",
+  "openTradeDividendAdjustments": [
+   {
+    "tradeID": "test-tradeID",
+    "dividendAdjustment": "1.2500",
+    "quoteDividendAdjustment": "1.2500",
+    "homeConversionCost": "1.2500"
+   }
+  ],
+  "homeConversionCost": "1.2500"
+ }
+]
