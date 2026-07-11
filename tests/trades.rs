@@ -216,3 +216,101 @@ async fn set_trade_dependent_orders_with_cancel() {
     assert!(response.take_profit_order_transaction.is_some());
     assert!(response.stop_loss_order_transaction.is_some());
 }
+
+#[tokio::test]
+async fn list_trades_instrument_and_before_id() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("GET"))
+            .and(path(format!("/accounts/{ACCOUNT_ID}/trades")))
+            .and(query_param("instrument", "EUR_USD"))
+            .and(query_param("beforeID", "7000")),
+    )
+    .respond_with(
+        ResponseTemplate::new(200)
+            .set_body_json(json!({"trades": [], "lastTransactionID": "7000"})),
+    )
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    let response = client
+        .list_trades(ACCOUNT_ID)
+        .instrument("EUR_USD")
+        .before_id(TradeId::from("7000"))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.trades.is_empty());
+}
+
+#[tokio::test]
+async fn close_trade_reject_carries_typed_details() {
+    let (server, client) = mock_client().await;
+    Mock::given(method("PUT"))
+        .and(path(format!("/accounts/{ACCOUNT_ID}/trades/6543/close")))
+        .respond_with(ResponseTemplate::new(400).set_body_json(json!({
+            "orderRejectTransaction": {
+                "type": "MARKET_ORDER_REJECT",
+                "id": "7200",
+                "instrument": "EUR_USD",
+                "rejectReason": "CLOSE_TRADE_UNITS_EXCEED_TRADE_SIZE"
+            },
+            "lastTransactionID": "7199",
+            "errorCode": "CLOSE_TRADE_UNITS_EXCEED_TRADE_SIZE",
+            "errorMessage": "units exceed trade size"
+        })))
+        .mount(&server)
+        .await;
+
+    let error = client
+        .close_trade(ACCOUNT_ID, TradeId::from("6543"))
+        .units("99999")
+        .send()
+        .await
+        .unwrap_err();
+    let oanda_rs::Error::Api { body, .. } = &error else {
+        panic!("expected Error::Api");
+    };
+    let details: oanda_rs::endpoints::trades::CloseTradeRejectBody = body.details().unwrap();
+    assert!(details.order_reject_transaction.is_some());
+}
+
+#[tokio::test]
+async fn set_trade_dependent_orders_cancel_and_trailing() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("PUT"))
+            .and(path(format!("/accounts/{ACCOUNT_ID}/trades/6543/orders")))
+            .and(body_json(json!({
+                "takeProfit": null,
+                "stopLoss": null,
+                "trailingStopLoss": {"distance": "0.0080"}
+            }))),
+    )
+    .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+        "trailingStopLossOrderTransaction": {
+            "type": "TRAILING_STOP_LOSS_ORDER",
+            "id": "6905",
+            "tradeID": "6543",
+            "distance": "0.0080"
+        },
+        "lastTransactionID": "6905"
+    })))
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    use oanda_rs::models::TrailingStopLossDetails;
+    let response = client
+        .set_trade_dependent_orders(ACCOUNT_ID, TradeId::from("6543"))
+        .cancel_take_profit()
+        .cancel_stop_loss()
+        .trailing_stop_loss(TrailingStopLossDetails::at_distance(
+            "0.0080".parse().unwrap(),
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.trailing_stop_loss_order_transaction.is_some());
+}

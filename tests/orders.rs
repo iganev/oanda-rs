@@ -300,3 +300,99 @@ async fn set_order_client_extensions() {
             .is_some()
     );
 }
+
+#[tokio::test]
+async fn list_orders_ids_and_before_id() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("GET"))
+            .and(path(format!("/accounts/{ACCOUNT_ID}/orders")))
+            .and(query_param("ids", "1,2"))
+            .and(query_param("beforeID", "100")),
+    )
+    .respond_with(
+        ResponseTemplate::new(200).set_body_json(json!({"orders": [], "lastTransactionID": "100"})),
+    )
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    let response = client
+        .list_orders(ACCOUNT_ID)
+        .ids([OrderId::from("1"), OrderId::from("2")])
+        .before_id(OrderId::from("100"))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.orders.is_empty());
+}
+
+#[tokio::test]
+async fn cancel_order_reject_carries_typed_details() {
+    let (server, client) = mock_client().await;
+    Mock::given(method("PUT"))
+        .and(path(format!("/accounts/{ACCOUNT_ID}/orders/9999/cancel")))
+        .respond_with(ResponseTemplate::new(404).set_body_json(json!({
+            "orderCancelRejectTransaction": {
+                "type": "ORDER_CANCEL_REJECT",
+                "id": "7100",
+                "orderID": "9999",
+                "rejectReason": "ORDER_DOESNT_EXIST"
+            },
+            "relatedTransactionIDs": ["7100"],
+            "lastTransactionID": "7100",
+            "errorCode": "ORDER_DOESNT_EXIST",
+            "errorMessage": "The order does not exist"
+        })))
+        .mount(&server)
+        .await;
+
+    let error = client
+        .cancel_order(ACCOUNT_ID, OrderId::from("9999"))
+        .await
+        .unwrap_err();
+    let Error::Api { body, .. } = &error else {
+        panic!("expected Error::Api");
+    };
+    let details: oanda_rs::endpoints::orders::CancelOrderRejectBody = body.details().unwrap();
+    let reject = details.order_cancel_reject_transaction.unwrap();
+    assert_eq!(reject.order_id.unwrap().as_str(), "9999");
+    assert_eq!(details.last_transaction_id.unwrap().as_str(), "7100");
+}
+
+#[tokio::test]
+async fn set_order_trade_client_extensions() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("PUT"))
+            .and(path(format!(
+                "/accounts/{ACCOUNT_ID}/orders/6789/clientExtensions"
+            )))
+            .and(body_json(json!({
+                "tradeClientExtensions": {"comment": "on-fill"}
+            }))),
+    )
+    .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+        "orderClientExtensionsModifyTransaction": {
+            "type": "ORDER_CLIENT_EXTENSIONS_MODIFY",
+            "id": "6804",
+            "orderID": "6789"
+        },
+        "lastTransactionID": "6804"
+    })))
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    let response = client
+        .set_order_client_extensions(ACCOUNT_ID, OrderId::from("6789"))
+        .trade_client_extensions(ClientExtensions::new().comment("on-fill"))
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        response
+            .order_client_extensions_modify_transaction
+            .is_some()
+    );
+}

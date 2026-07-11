@@ -121,3 +121,82 @@ impl ApiErrorBody {
             .and_then(|v| serde_json::from_value(v).ok())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn api_error(status: u16) -> Error {
+        Error::Api {
+            status: StatusCode::from_u16(status).unwrap(),
+            request_id: Some("req-1".into()),
+            body: ApiErrorBody {
+                error_message: "boom".into(),
+                error_code: Some("CODE".into()),
+                reject_reason: None,
+                extra: serde_json::Map::new(),
+            },
+        }
+    }
+
+    #[test]
+    fn display_formats() {
+        assert_eq!(
+            api_error(400).to_string(),
+            "OANDA API error (HTTP 400 Bad Request): boom"
+        );
+        let decode = Error::Decode {
+            source: serde_json::from_str::<u8>("x").unwrap_err(),
+            body: "x".into(),
+        };
+        assert!(
+            decode
+                .to_string()
+                .starts_with("failed to decode response body")
+        );
+        assert_eq!(
+            Error::Stream("gap".into()).to_string(),
+            "stream protocol error: gap"
+        );
+        assert_eq!(
+            Error::Config("bad".into()).to_string(),
+            "invalid client configuration: bad"
+        );
+    }
+
+    #[test]
+    fn helpers() {
+        assert_eq!(api_error(429).status().map(|s| s.as_u16()), Some(429));
+        assert!(api_error(429).is_rate_limited());
+        assert!(!api_error(400).is_rate_limited());
+        assert_eq!(api_error(400).request_id(), Some("req-1"));
+        assert_eq!(Error::Stream("x".into()).status(), None);
+        assert_eq!(Error::Config("x".into()).request_id(), None);
+    }
+
+    #[test]
+    fn details_decodes_extra_fields() {
+        #[derive(serde::Deserialize)]
+        struct View {
+            #[serde(rename = "lastTransactionID")]
+            last_transaction_id: String,
+        }
+        let mut extra = serde_json::Map::new();
+        extra.insert("lastTransactionID".into(), serde_json::json!("42"));
+        let body = ApiErrorBody {
+            error_message: "rejected".into(),
+            error_code: None,
+            reject_reason: Some("REASON".into()),
+            extra,
+        };
+        let view: View = body.details().unwrap();
+        assert_eq!(view.last_transaction_id, "42");
+        // A shape mismatch yields None instead of panicking.
+        #[derive(serde::Deserialize)]
+        struct Wrong {
+            #[serde(rename = "lastTransactionID")]
+            _n: u64,
+        }
+        assert!(body.details::<Wrong>().is_none());
+    }
+}

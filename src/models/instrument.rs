@@ -584,3 +584,46 @@ impl std::fmt::Display for CandleSpecification {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pricing_component_display_and_parse() {
+        assert_eq!(PricingComponent::BID.to_string(), "B");
+        assert_eq!(PricingComponent::ASK.to_string(), "A");
+        assert_eq!(
+            PricingComponent::MID.with_bid().with_ask().to_string(),
+            "BMA"
+        );
+        assert_eq!(PricingComponent::default().with_mid().to_string(), "M");
+        assert_eq!(
+            "bma".parse::<PricingComponent>().unwrap().to_string(),
+            "BMA"
+        );
+        assert!("BX".parse::<PricingComponent>().is_err());
+    }
+
+    #[test]
+    fn candle_specification_display() {
+        let spec = CandleSpecification::new("EUR_USD", CandlestickGranularity::S10);
+        assert_eq!(spec.to_string(), "EUR_USD:S10");
+        let with_price =
+            CandleSpecification::new(InstrumentName::XauUsd, CandlestickGranularity::M1)
+                .price(PricingComponent::BID.with_mid());
+        assert_eq!(with_price.to_string(), "XAU_USD:M1:BM");
+    }
+
+    #[test]
+    fn string_enums_tolerate_unknown_values() {
+        let g: CandlestickGranularity = serde_json::from_str(r#""H16""#).unwrap();
+        assert_eq!(g, CandlestickGranularity::Other("H16".to_owned()));
+        assert_eq!(serde_json::to_string(&g).unwrap(), r#""H16""#);
+        assert_eq!(CandlestickGranularity::from("D"), CandlestickGranularity::D);
+        assert_eq!(
+            WeeklyAlignment::from(String::from("Friday")),
+            WeeklyAlignment::Friday
+        );
+    }
+}

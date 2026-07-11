@@ -226,3 +226,94 @@ async fn stream_malformed_line_is_reported_but_not_fatal() {
     assert!(matches!(items[0], Err(Error::Decode { .. })));
     assert!(matches!(items[1], Ok(PriceStreamItem::Heartbeat(_))));
 }
+
+#[tokio::test]
+async fn stream_builders_accept_full_config_and_expose_stats() {
+    let (server, client) = mock_client().await;
+    let heartbeat = concat!(
+        r#"{"type":"HEARTBEAT","time":"2024-06-14T12:00:05.000000000Z"}"#,
+        "\n"
+    );
+    Mock::given(method("GET"))
+        .and(path(format!("/accounts/{ACCOUNT_ID}/pricing/stream")))
+        .and(query_param("snapshot", "true"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_raw(heartbeat, "application/octet-stream"),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/accounts/{ACCOUNT_ID}/transactions/stream")))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(
+            concat!(r#"{"type":"HEARTBEAT","lastTransactionID":"1"}"#, "\n"),
+            "application/octet-stream",
+        ))
+        .mount(&server)
+        .await;
+
+    let mut prices = client
+        .pricing_stream(ACCOUNT_ID, ["EUR_USD"])
+        .snapshot(true)
+        .auto_reconnect(true)
+        .heartbeat_timeout(Duration::from_secs(30))
+        .backoff(Duration::from_millis(10), Duration::from_millis(100))
+        .backoff_reset_after(Duration::from_secs(1))
+        .max_reconnect_attempts(1)
+        .send()
+        .await
+        .unwrap();
+    assert!(prices.next().await.unwrap().is_ok());
+    assert_eq!(prices.stats().reconnects, 0);
+    assert!(format!("{prices:?}").contains("PricingStream"));
+
+    let mut transactions = client
+        .transaction_stream(ACCOUNT_ID)
+        .auto_reconnect(true)
+        .heartbeat_timeout(Duration::from_secs(30))
+        .backoff(Duration::from_millis(10), Duration::from_millis(100))
+        .backoff_reset_after(Duration::from_secs(1))
+        .max_reconnect_attempts(1)
+        .send()
+        .await
+        .unwrap();
+    assert!(matches!(
+        transactions.next().await.unwrap().unwrap(),
+        TransactionStreamItem::Heartbeat(_)
+    ));
+    assert!(format!("{transactions:?}").contains("TransactionStream"));
+    // Exhausting reconnect attempts (mock keeps EOF-ing) ends with an error.
+    let last = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match transactions.next().await {
+                Some(Err(e)) => break Some(e),
+                Some(Ok(_)) => continue,
+                None => break None,
+            }
+        }
+    })
+    .await
+    .unwrap();
+    assert!(last.is_some() || transactions.stats().reconnects > 0);
+}
+
+#[tokio::test]
+async fn prices_since_parameter() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("GET"))
+            .and(path(format!("/accounts/{ACCOUNT_ID}/pricing")))
+            .and(query_param("since", "2024-06-14T12:00:00Z")),
+    )
+    .respond_with(ResponseTemplate::new(200).set_body_json(json!({"prices": []})))
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    let response = client
+        .prices(ACCOUNT_ID, ["EUR_USD"])
+        .since("2024-06-14T12:00:00Z")
+        .send()
+        .await
+        .unwrap();
+    assert!(response.prices.is_empty());
+}

@@ -205,3 +205,101 @@ async fn position_book() {
     assert_eq!(response.position_book.buckets.len(), 1);
     assert!(response.link.is_none());
 }
+
+#[tokio::test]
+async fn candles_remaining_query_params() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("GET"))
+            .and(path("/instruments/EUR_USD/candles"))
+            .and(query_param("from", "2024-06-01T00:00:00Z"))
+            .and(query_param("to", "2024-06-14T00:00:00Z"))
+            .and(query_param("includeFirst", "true"))
+            .and(query_param("dailyAlignment", "17"))
+            .and(query_param("alignmentTimezone", "America/New_York")),
+    )
+    .respond_with(ResponseTemplate::new(200).set_body_json(candles_body()))
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    client
+        .candles("EUR_USD")
+        .from("2024-06-01T00:00:00Z")
+        .to("2024-06-14T00:00:00Z")
+        .include_first(true)
+        .daily_alignment(17)
+        .alignment_timezone("America/New_York")
+        .send()
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn latest_candles_remaining_query_params() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("GET"))
+            .and(path(format!("/accounts/{ACCOUNT_ID}/candles/latest")))
+            .and(query_param("units", "500"))
+            .and(query_param("smooth", "true"))
+            .and(query_param("dailyAlignment", "6"))
+            .and(query_param("alignmentTimezone", "Europe/Sofia"))
+            .and(query_param("weeklyAlignment", "Monday")),
+    )
+    .respond_with(ResponseTemplate::new(200).set_body_json(json!({"latestCandles": []})))
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    let response = client
+        .latest_candles(
+            ACCOUNT_ID,
+            [CandleSpecification::new(
+                "EUR_USD",
+                CandlestickGranularity::M1,
+            )],
+        )
+        .units(500)
+        .smooth(true)
+        .daily_alignment(6)
+        .alignment_timezone("Europe/Sofia")
+        .weekly_alignment(oanda_rs::models::WeeklyAlignment::Monday)
+        .send()
+        .await
+        .unwrap();
+    assert!(response.latest_candles.is_empty());
+}
+
+#[tokio::test]
+async fn position_book_with_time_param() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("GET"))
+            .and(path("/instruments/EUR_USD/positionBook"))
+            .and(query_param("time", "2024-06-14T12:00:00Z")),
+    )
+    .respond_with(
+        ResponseTemplate::new(200)
+            .insert_header("Link", "<next>; rel=\"next\"")
+            .set_body_json(json!({
+                "positionBook": {
+                    "instrument": "EUR_USD",
+                    "price": "1.07132",
+                    "bucketWidth": "0.0005",
+                    "buckets": []
+                }
+            })),
+    )
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    let response = client
+        .instrument_position_book("EUR_USD")
+        .time("2024-06-14T12:00:00Z")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.link.as_deref(), Some("<next>; rel=\"next\""));
+}

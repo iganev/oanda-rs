@@ -338,6 +338,8 @@ mod tests {
     struct MockKind {
         script: std::collections::VecDeque<Outcome>,
         connects: Arc<Mutex<Vec<Instant>>>,
+        backfills: std::collections::VecDeque<Result<Vec<serde_json::Value>, ()>>,
+        drop_below: Option<i64>,
     }
 
     impl MockKind {
@@ -347,6 +349,8 @@ mod tests {
                 MockKind {
                     script: script.into(),
                     connects: Arc::clone(&connects),
+                    backfills: Default::default(),
+                    drop_below: None,
                 },
                 connects,
             )
@@ -388,6 +392,20 @@ mod tests {
             self.connects.lock().unwrap().push(Instant::now());
             let outcome = self.script.pop_front().expect("script exhausted");
             Box::pin(async move { bytes_from(outcome) })
+        }
+
+        fn filter(&mut self, item: &serde_json::Value) -> bool {
+            match (self.drop_below, item.get("n").and_then(|n| n.as_i64())) {
+                (Some(min), Some(n)) => n >= min,
+                _ => true,
+            }
+        }
+
+        fn backfill(&mut self) -> Option<BackfillFuture<serde_json::Value>> {
+            let outcome = self.backfills.pop_front()?;
+            Some(Box::pin(async move {
+                outcome.map_err(|()| Error::Stream("backfill failed".into()))
+            }))
         }
     }
 
@@ -554,5 +572,39 @@ mod tests {
         let stats = stream.stats();
         assert_eq!(stats.reconnects, 1);
         assert_eq!(stats.failed_attempts, 1);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn backfill_items_are_drained_and_filtered_before_live_data() {
+        let script = vec![Outcome::Chunks(vec![b"{\"n\":4}\n"])];
+        let (mut kind, _) = MockKind::new(script);
+        kind.backfills.push_back(Ok(vec![
+            serde_json::json!({"n": 1}), // dropped by filter
+            serde_json::json!({"n": 3}),
+        ]));
+        kind.drop_below = Some(2);
+        let initial = bytes_from(Outcome::Chunks(vec![])).unwrap();
+        let stream = ManagedStream::new(kind, StreamConfig::default(), initial);
+        let items: Vec<i64> = stream
+            .take(2)
+            .map(|r| r.unwrap()["n"].as_i64().unwrap())
+            .collect()
+            .await;
+        assert_eq!(items, vec![3, 4]);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn failed_backfill_is_reported_but_stream_continues() {
+        let script = vec![Outcome::Chunks(vec![b"{\"n\":7}\n"])];
+        let (mut kind, _) = MockKind::new(script);
+        kind.backfills.push_back(Err(()));
+        let initial = bytes_from(Outcome::Chunks(vec![])).unwrap();
+        let stream = ManagedStream::new(kind, StreamConfig::default(), initial);
+        let items: Vec<_> = stream.take(2).collect().await;
+        assert!(
+            matches!(&items[0], Err(Error::Stream(msg)) if msg.contains("backfill failed")),
+            "first item should be the backfill error: {items:?}"
+        );
+        assert_eq!(items[1].as_ref().unwrap()["n"], 7);
     }
 }

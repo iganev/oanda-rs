@@ -399,4 +399,60 @@ mod tests {
         assert_eq!(OrderSpecifier::from_client_id("my-id").as_str(), "@my-id");
         assert_eq!(OrderSpecifier::from(OrderId::from("42")).as_str(), "42");
     }
+
+    #[test]
+    fn decimal_newtype_conversions() {
+        assert_eq!(DecimalNumber::from(5i64).to_string(), "5");
+        assert_eq!(DecimalNumber::from(-3i32).to_string(), "-3");
+        assert_eq!(DecimalNumber::from(7u32).to_string(), "7");
+        let d = rust_decimal::Decimal::new(12345, 4);
+        assert_eq!(PriceValue::from(d).to_string(), "1.2345");
+        assert_eq!(rust_decimal::Decimal::from(PriceValue::from(d)), d);
+        assert_eq!(AccountUnits::try_from(0.5f64).unwrap().to_string(), "0.5");
+        assert!(AccountUnits::try_from(f64::NAN).is_err());
+        assert_eq!(PriceValue::default().value(), rust_decimal::Decimal::ZERO);
+        assert!("garbage".parse::<DecimalNumber>().is_err());
+        assert_eq!("2e3".parse::<DecimalNumber>().unwrap().to_string(), "2000");
+    }
+
+    #[test]
+    fn string_newtype_conversions() {
+        let id: AccountId = "101-004-1234567-001".parse().unwrap();
+        assert_eq!(id.as_str(), "101-004-1234567-001");
+        assert_eq!(id.to_string(), "101-004-1234567-001");
+        assert_eq!(AccountId::from(String::from("x")), AccountId::from("x"));
+        assert_eq!(TradeSpecifier::from_client_id("t").as_str(), "@t");
+        assert_eq!(TradeSpecifier::from(TradeId::from("9")).as_str(), "9");
+        assert_eq!(TradeSpecifier::from(&TradeId::from("9")).as_str(), "9");
+        assert_eq!(OrderSpecifier::from(&OrderId::from("7")).as_str(), "7");
+    }
+
+    #[test]
+    fn datetime_conversions() {
+        let utc = chrono::DateTime::from_timestamp(1718366492, 123_456_000).unwrap();
+        let dt = DateTime::from(utc);
+        assert_eq!(dt.as_str(), "2024-06-14T12:01:32.123456Z");
+        assert_eq!(dt.to_utc(), Some(utc));
+        assert_eq!(dt.to_string(), dt.as_str());
+        assert_eq!(DateTime::from(String::from("x")).as_str(), "x");
+        // over-long fraction is rejected rather than mis-parsed
+        assert!(DateTime::from("123.1234567891").to_utc().is_none());
+    }
+
+    #[test]
+    fn accept_datetime_format_serde_and_header() {
+        assert_eq!(
+            AcceptDatetimeFormat::default(),
+            AcceptDatetimeFormat::Rfc3339
+        );
+        assert_eq!(AcceptDatetimeFormat::Unix.as_header_value(), "UNIX");
+        assert_eq!(
+            serde_json::to_string(&AcceptDatetimeFormat::Rfc3339).unwrap(),
+            r#""RFC3339""#
+        );
+        assert_eq!(
+            serde_json::from_str::<AcceptDatetimeFormat>(r#""UNIX""#).unwrap(),
+            AcceptDatetimeFormat::Unix
+        );
+    }
 }

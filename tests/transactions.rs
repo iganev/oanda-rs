@@ -125,3 +125,53 @@ async fn id_range_and_since_id() {
         .unwrap();
     assert_eq!(since.last_transaction_id.unwrap().as_str(), "6791");
 }
+
+#[tokio::test]
+async fn list_transactions_time_range_and_id_range_types() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("GET"))
+            .and(path(format!("/accounts/{ACCOUNT_ID}/transactions")))
+            .and(query_param("from", "2024-06-01T00:00:00Z"))
+            .and(query_param("to", "2024-06-14T00:00:00Z")),
+    )
+    .respond_with(ResponseTemplate::new(200).set_body_json(json!({"count": 0, "pages": []})))
+    .expect(1)
+    .mount(&server)
+    .await;
+    standard_headers(
+        Mock::given(method("GET"))
+            .and(path(format!("/accounts/{ACCOUNT_ID}/transactions/idrange")))
+            .and(query_param("from", "1"))
+            .and(query_param("to", "2"))
+            .and(query_param("type", "ORDER_FILL,DAILY_FINANCING")),
+    )
+    .respond_with(
+        ResponseTemplate::new(200)
+            .set_body_json(json!({"transactions": [], "lastTransactionID": "2"})),
+    )
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    client
+        .list_transactions(ACCOUNT_ID)
+        .from("2024-06-01T00:00:00Z")
+        .to("2024-06-14T00:00:00Z")
+        .send()
+        .await
+        .unwrap();
+    client
+        .transactions_id_range(
+            ACCOUNT_ID,
+            TransactionId::from("1"),
+            TransactionId::from("2"),
+        )
+        .types([
+            TransactionFilter::OrderFill,
+            TransactionFilter::DailyFinancing,
+        ])
+        .send()
+        .await
+        .unwrap();
+}

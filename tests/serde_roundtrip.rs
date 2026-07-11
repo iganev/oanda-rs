@@ -40,6 +40,9 @@ fn all_transaction_variants_roundtrip() {
         assert_eq!(tx.type_name(), Some(tag.as_str()));
         assert_eq!(tx.id().unwrap().as_str(), "6789");
         assert_eq!(tx.account_id().unwrap().as_str(), "101-004-1234567-001");
+        assert_eq!(tx.batch_id().unwrap().as_str(), "6789");
+        assert_eq!(tx.user_id(), Some(1234567));
+        assert!(tx.request_id().is_some());
         assert!(tx.time().unwrap().to_utc().is_some());
     }
 }
@@ -85,4 +88,29 @@ fn unknown_order_type_is_preserved() {
     assert!(matches!(order, Order::Unknown(_)));
     assert_eq!(order.type_name(), Some("GUARANTEED_STOP_LOSS"));
     assert_eq!(serde_json::to_value(&order).unwrap(), raw);
+}
+
+#[test]
+fn stream_items_serialize_like_their_inner_values() {
+    use oanda_rs::models::PriceStreamItem;
+    use oanda_rs::models::transaction::TransactionStreamItem;
+
+    let price_json = serde_json::json!({"type": "PRICE", "instrument": "EUR_USD"});
+    let price: PriceStreamItem = serde_json::from_value(price_json.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&price).unwrap(), price_json);
+
+    let hb_json =
+        serde_json::json!({"type": "HEARTBEAT", "time": "2024-06-14T12:00:05.000000000Z"});
+    let hb: PriceStreamItem = serde_json::from_value(hb_json.clone()).unwrap();
+    assert!(matches!(hb, PriceStreamItem::Heartbeat(_)));
+    assert_eq!(serde_json::to_value(&hb).unwrap(), hb_json);
+
+    let tx_json = serde_json::json!({"type": "ORDER_FILL", "id": "1"});
+    let tx: TransactionStreamItem = serde_json::from_value(tx_json.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&tx).unwrap(), tx_json);
+
+    let thb_json = serde_json::json!({"type": "HEARTBEAT", "lastTransactionID": "1"});
+    let thb: TransactionStreamItem = serde_json::from_value(thb_json.clone()).unwrap();
+    assert!(matches!(thb, TransactionStreamItem::Heartbeat(_)));
+    assert_eq!(serde_json::to_value(&thb).unwrap(), thb_json);
 }

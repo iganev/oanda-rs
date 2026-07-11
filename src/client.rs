@@ -303,4 +303,66 @@ mod tests {
             "https://stream-fxtrade.oanda.com/v3"
         );
     }
+
+    #[test]
+    fn builder_full_configuration() {
+        let client = Client::builder()
+            .environment(Environment::Live)
+            .token("t")
+            .datetime_format(crate::models::AcceptDatetimeFormat::Unix)
+            .user_agent("custom-agent/1.0")
+            .rest_rate_limit(10)
+            .build()
+            .unwrap();
+        assert_eq!(
+            client.datetime_format(),
+            crate::models::AcceptDatetimeFormat::Unix
+        );
+        assert_eq!(
+            client.inner.rest_base.as_str(),
+            "https://api-fxtrade.oanda.com/v3"
+        );
+        assert!(client.inner.rest_limiter.is_some());
+    }
+
+    #[test]
+    fn builder_accepts_custom_http_client_and_disables_limits() {
+        let http = reqwest::Client::builder().build().unwrap();
+        let client = Client::builder()
+            .token("t")
+            .http_client(http)
+            .rate_limiting(false)
+            .build()
+            .unwrap();
+        assert!(client.inner.rest_limiter.is_none());
+        assert!(client.inner.conn_limiter.is_none());
+    }
+
+    #[test]
+    fn builder_rejects_zero_rate_limit() {
+        assert!(matches!(
+            Client::builder().token("t").rest_rate_limit(0).build(),
+            Err(Error::Config(_))
+        ));
+        // ...unless rate limiting is disabled entirely.
+        assert!(
+            Client::builder()
+                .token("t")
+                .rest_rate_limit(0)
+                .rate_limiting(false)
+                .build()
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn custom_environment_uses_given_urls() {
+        let env = Environment::Custom {
+            rest: "http://127.0.0.1:1/api".parse().unwrap(),
+            stream: "http://127.0.0.1:2/stream".parse().unwrap(),
+        };
+        assert_eq!(env.rest_base().as_str(), "http://127.0.0.1:1/api");
+        assert_eq!(env.stream_base().as_str(), "http://127.0.0.1:2/stream");
+        assert!(format!("{env:?}").contains("Custom"));
+    }
 }

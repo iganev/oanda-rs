@@ -134,3 +134,79 @@ async fn close_position_long_side() {
         "1.2000"
     );
 }
+
+#[tokio::test]
+async fn close_position_short_side_with_extensions() {
+    let (server, client) = mock_client().await;
+    standard_headers(
+        Mock::given(method("PUT"))
+            .and(path(format!(
+                "/accounts/{ACCOUNT_ID}/positions/EUR_USD/close"
+            )))
+            .and(body_json(json!({
+                "longUnits": "NONE",
+                "longClientExtensions": {"tag": "long"},
+                "shortUnits": "50",
+                "shortClientExtensions": {"tag": "short"}
+            }))),
+    )
+    .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+        "shortOrderCreateTransaction": {
+            "type": "MARKET_ORDER",
+            "id": "7300",
+            "instrument": "EUR_USD",
+            "units": "50"
+        },
+        "relatedTransactionIDs": ["7300"],
+        "lastTransactionID": "7300"
+    })))
+    .expect(1)
+    .mount(&server)
+    .await;
+
+    use oanda_rs::models::ClientExtensions;
+    let response = client
+        .close_position(ACCOUNT_ID, "EUR_USD")
+        .long_units("NONE")
+        .long_client_extensions(ClientExtensions::new().tag("long"))
+        .short_units("50")
+        .short_client_extensions(ClientExtensions::new().tag("short"))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.short_order_create_transaction.is_some());
+}
+
+#[tokio::test]
+async fn close_position_reject_carries_typed_details() {
+    let (server, client) = mock_client().await;
+    Mock::given(method("PUT"))
+        .and(path(format!(
+            "/accounts/{ACCOUNT_ID}/positions/EUR_USD/close"
+        )))
+        .respond_with(ResponseTemplate::new(400).set_body_json(json!({
+            "longOrderRejectTransaction": {
+                "type": "MARKET_ORDER_REJECT",
+                "id": "7301",
+                "instrument": "EUR_USD",
+                "rejectReason": "CLOSEOUT_POSITION_DOESNT_EXIST"
+            },
+            "lastTransactionID": "7300",
+            "errorCode": "CLOSEOUT_POSITION_DOESNT_EXIST",
+            "errorMessage": "no position"
+        })))
+        .mount(&server)
+        .await;
+
+    let error = client
+        .close_position(ACCOUNT_ID, "EUR_USD")
+        .long_units("ALL")
+        .send()
+        .await
+        .unwrap_err();
+    let oanda_rs::Error::Api { body, .. } = &error else {
+        panic!("expected Error::Api");
+    };
+    let details: oanda_rs::endpoints::positions::ClosePositionRejectBody = body.details().unwrap();
+    assert!(details.long_order_reject_transaction.is_some());
+}
