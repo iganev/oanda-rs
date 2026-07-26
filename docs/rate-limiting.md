@@ -46,8 +46,34 @@ let unlimited = Client::builder()
   processes) behind one IP each limit themselves independently — their *combined*
   rate can still trip the server. Within one process, always share a single
   client; it is cheap to clone.
-- The limiter is proactive, not reactive: the SDK does not auto-retry HTTP 429.
-  If you see one (e.g. another process shares your IP), detect it with
-  [`Error::is_rate_limited`] and back off yourself.
+- The limiter is proactive: it keeps you *under* the limits rather than reacting
+  to them. A 429 can still arrive — another process may share your IP — and it
+  is classified as **transient**, so streams back off and reconnect rather than
+  ending. Use `Error::is_rate_limited` when you want to treat it specially.
 - Transaction-stream back-fills after reconnects consume REST quota; they pass
   through the same limiter.
+
+## Retrying ordinary requests
+
+The limiter makes requests *wait*, but it cannot prevent a failure that has
+already happened. For that, the SDK exposes the same retry policy its streams
+use, so callers need not hand-roll status matching and backoff:
+
+```rust,no_run
+# async fn run() -> Result<(), oanda_rs::Error> {
+# let client = oanda_rs::Client::new(oanda_rs::Environment::Practice, "t");
+use oanda_rs::{RetryPolicy, retry};
+
+// Retries 429s, 5xx and transport failures on capped, jittered backoff;
+// returns immediately on a bad token or a malformed request.
+let summary = retry(&RetryPolicy::default(), || {
+    client.account_summary("101-004-1234567-001")
+})
+.await?;
+# let _ = summary;
+# Ok(())
+# }
+```
+
+See [`RetryPolicy`] for the backoff bounds and attempt limit, and `FatalRetry`
+for riding out maintenance windows that answer 4xx.

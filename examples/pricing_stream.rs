@@ -1,6 +1,7 @@
 //! Streams live EUR/USD and XAU/USD prices. Reconnection (including
 //! OANDA's weekend maintenance windows) is handled automatically by the
-//! SDK; just keep consuming items.
+//! SDK; just keep consuming items. That covers startup too: if the venue is
+//! down when this starts, `send()` waits for it rather than failing.
 //!
 //! ```sh
 //! cargo run --example pricing_stream
@@ -30,7 +31,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("♥ (reconnects so far: {})", stream.stats().reconnects);
             }
             Ok(_) => {}
-            Err(e) => eprintln!("stream error: {e}"),
+            // A transient error is informational — the SDK is already
+            // reconnecting. A fatal one means the stream is ending, so it is
+            // the last item you will see.
+            Err(e) if e.is_fatal() => eprintln!("stream ended: {e}"),
+            Err(e) => eprintln!("transient stream error (reconnecting): {e}"),
         }
     }
     Ok(())

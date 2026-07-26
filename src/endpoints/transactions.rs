@@ -7,9 +7,7 @@ use crate::client::Client;
 use crate::error::Error;
 use crate::models::transaction::{Transaction, TransactionFilter};
 use crate::models::{AccountId, DateTime, TransactionId};
-use crate::streaming::{
-    StreamConfig, StreamKind, TransactionKind, TransactionStream, stream_config_setters,
-};
+use crate::streaming::{StreamConfig, TransactionKind, TransactionStream, stream_config_setters};
 
 impl Client {
     /// Get a list of transaction pages that satisfy a time-based
@@ -139,15 +137,21 @@ pub struct TransactionStreamRequest {
 impl TransactionStreamRequest {
     stream_config_setters!();
 
-    /// Connects and returns the managed stream. Fails fast when the
-    /// initial connection is rejected (e.g. bad token or account).
+    /// Connects and returns the managed stream.
+    ///
+    /// Fails fast when the initial connection is rejected for a reason a
+    /// retry cannot fix (bad token, unknown account). A transient rejection —
+    /// a 5xx from OANDA's edge while the venue is closed, a rate limit, a
+    /// dropped connection — is retried on the configured backoff instead, so
+    /// a stream opened during an outage waits rather than gives up. Disable
+    /// with [`auto_reconnect(false)`](Self::auto_reconnect).
     pub async fn send(self) -> Result<TransactionStream, Error> {
         let mut kind = TransactionKind {
             client: self.client,
             account_id: self.account_id,
             last_seen: None,
         };
-        let initial = kind.connect(false).await?;
+        let initial = crate::streaming::connect_initial(&mut kind, &self.config).await?;
         Ok(TransactionStream::new(kind, self.config, initial))
     }
 }
