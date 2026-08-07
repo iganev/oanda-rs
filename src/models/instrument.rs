@@ -1,5 +1,6 @@
 //! Instrument metadata, candlestick, and order/position book models.
 
+use rust_decimal::{Decimal, RoundingStrategy};
 use serde::{Deserialize, Serialize};
 
 use super::macros::string_enum;
@@ -31,6 +32,12 @@ pub struct Instrument {
     /// The number of decimal places that should be used to display prices for
     /// this instrument. (e.g. a displayPrecision of 5 would result in a price
     /// of "1" being displayed as "1.00000")
+    ///
+    /// This is not only a display concern: OANDA rejects orders whose price
+    /// values (e.g. a `trailingStopLossOnFill.distance`) carry more decimal
+    /// places than this, with an HTTP 400 naming the offending field. Use
+    /// [`Instrument::round_to_display_precision`] to conform computed values
+    /// before submitting them.
     #[serde(rename = "displayPrecision", skip_serializing_if = "Option::is_none")]
     pub display_precision: Option<i64>,
 
@@ -48,6 +55,10 @@ pub struct Instrument {
 
     /// The maximum trailing stop distance allowed for a trailing stop loss
     /// created for this instrument. Specified in price units.
+    ///
+    /// A distance above this bound is rejected with an HTTP 400 on
+    /// `order.trailingStopLossOnFill.distance`; check with
+    /// [`Instrument::validate_trailing_distance`] before submitting.
     #[serde(
         rename = "maximumTrailingStopDistance",
         skip_serializing_if = "Option::is_none"
@@ -56,6 +67,10 @@ pub struct Instrument {
 
     /// The minimum trailing stop distance allowed for a trailing stop loss
     /// created for this instrument. Specified in price units.
+    ///
+    /// A distance below this bound is rejected with an HTTP 400 on
+    /// `order.trailingStopLossOnFill.distance`; check with
+    /// [`Instrument::validate_trailing_distance`] before submitting.
     #[serde(
         rename = "minimumTrailingStopDistance",
         skip_serializing_if = "Option::is_none"
@@ -123,6 +138,136 @@ pub struct Instrument {
     /// The tags associated with this instrument.
     #[serde(rename = "tags", default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<Tag>,
+}
+
+impl Instrument {
+    /// Rounds a computed price value (a level or a distance) to this
+    /// instrument's [`display_precision`](Instrument::display_precision),
+    /// half-up, with trailing zeros stripped.
+    ///
+    /// OANDA rejects price values carrying more decimals than the display
+    /// precision (HTTP 400 naming the field), and computed values — a
+    /// `multiplier × ATR` product, say — routinely do. Returns `None` when
+    /// the instrument metadata does not include a usable display precision.
+    pub fn round_to_display_precision(&self, value: Decimal) -> Option<Decimal> {
+        self.display_precision
+            .and_then(|p| u32::try_from(p).ok())
+            .map(|p| conform_to_display_precision(value, p))
+    }
+
+    /// Checks a `trailingStopLossOnFill.distance` against everything this
+    /// instrument's metadata says OANDA will enforce: positivity, the
+    /// [`display_precision`](Instrument::display_precision), and the
+    /// [`minimum`](Instrument::minimum_trailing_stop_distance)/
+    /// [`maximum`](Instrument::maximum_trailing_stop_distance) trailing
+    /// bounds. Constraints whose metadata is absent are skipped.
+    ///
+    /// A distance that fails any of these is rejected by OANDA with an
+    /// HTTP 400 on `order.trailingStopLossOnFill.distance`. Conform the
+    /// precision with [`Instrument::round_to_display_precision`].
+    pub fn validate_trailing_distance(
+        &self,
+        distance: Decimal,
+    ) -> Result<(), TrailingDistanceError> {
+        validate_trailing_distance(
+            distance,
+            self.display_precision.and_then(|p| u32::try_from(p).ok()),
+            self.minimum_trailing_stop_distance.as_ref().map(|d| d.0),
+            self.maximum_trailing_stop_distance.as_ref().map(|d| d.0),
+        )
+    }
+}
+
+/// Rounds a price value to `display_precision` decimal places, half-up, with
+/// trailing zeros stripped.
+///
+/// The standalone counterpart of [`Instrument::round_to_display_precision`]
+/// for callers that keep instrument metadata in their own types.
+pub fn conform_to_display_precision(value: Decimal, display_precision: u32) -> Decimal {
+    value
+        .round_dp_with_strategy(display_precision, RoundingStrategy::MidpointAwayFromZero)
+        .normalize()
+}
+
+/// Checks a `trailingStopLossOnFill.distance` against the constraints OANDA
+/// enforces, skipping any whose metadata is `None` (positivity is always
+/// checked).
+///
+/// The standalone counterpart of [`Instrument::validate_trailing_distance`]
+/// for callers that keep instrument metadata in their own types.
+pub fn validate_trailing_distance(
+    distance: Decimal,
+    display_precision: Option<u32>,
+    minimum: Option<Decimal>,
+    maximum: Option<Decimal>,
+) -> Result<(), TrailingDistanceError> {
+    if distance <= Decimal::ZERO {
+        return Err(TrailingDistanceError::NonPositive { distance });
+    }
+    if let Some(precision) = display_precision {
+        if distance.normalize().scale() > precision {
+            return Err(TrailingDistanceError::TooPrecise {
+                distance,
+                precision,
+            });
+        }
+    }
+    if let Some(minimum) = minimum {
+        if distance < minimum {
+            return Err(TrailingDistanceError::BelowMinimum { distance, minimum });
+        }
+    }
+    if let Some(maximum) = maximum {
+        if distance > maximum {
+            return Err(TrailingDistanceError::AboveMaximum { distance, maximum });
+        }
+    }
+    Ok(())
+}
+
+/// A trailing stop distance OANDA would reject with an HTTP 400 on
+/// `order.trailingStopLossOnFill.distance`. Returned by
+/// [`validate_trailing_distance`].
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum TrailingDistanceError {
+    /// The distance is zero or negative.
+    #[error("trailing stop distance must be positive (got {distance})")]
+    NonPositive {
+        /// The offending distance.
+        distance: Decimal,
+    },
+
+    /// The distance carries more decimal places than the instrument's
+    /// display precision.
+    #[error(
+        "trailing stop distance {distance} carries more decimals than the \
+         display precision {precision}"
+    )]
+    TooPrecise {
+        /// The offending distance.
+        distance: Decimal,
+        /// The instrument's display precision (decimal places).
+        precision: u32,
+    },
+
+    /// The distance is below the instrument's minimum trailing stop distance.
+    #[error("trailing stop distance {distance} is below the instrument minimum {minimum}")]
+    BelowMinimum {
+        /// The offending distance.
+        distance: Decimal,
+        /// The instrument's minimum trailing stop distance.
+        minimum: Decimal,
+    },
+
+    /// The distance is above the instrument's maximum trailing stop distance.
+    #[error("trailing stop distance {distance} is above the instrument maximum {maximum}")]
+    AboveMaximum {
+        /// The offending distance.
+        distance: Decimal,
+        /// The instrument's maximum trailing stop distance.
+        maximum: Decimal,
+    },
 }
 
 /// An InstrumentCommission represents an instrument-specific commission
@@ -613,6 +758,147 @@ mod tests {
             CandleSpecification::new(InstrumentName::XauUsd, CandlestickGranularity::M1)
                 .price(PricingComponent::BID.with_mid());
         assert_eq!(with_price.to_string(), "XAU_USD:M1:BM");
+    }
+
+    fn dec(s: &str) -> Decimal {
+        s.parse().unwrap()
+    }
+
+    /// Copper-shaped metadata: 5 display decimals, trailing bounds
+    /// [0.0005, 1.0].
+    fn xcu_usd() -> Instrument {
+        serde_json::from_str(
+            r#"{
+                "name": "XCU_USD",
+                "type": "CFD",
+                "displayPrecision": 5,
+                "minimumTrailingStopDistance": "0.00050",
+                "maximumTrailingStopDistance": "1.00000"
+            }"#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn conform_to_display_precision_rounds_half_up_and_normalizes() {
+        // A raw multiplier × ATR product at SPX500's display precision of 1.
+        assert_eq!(
+            conform_to_display_precision(dec("201.16666666666666666666666667"), 1),
+            dec("201.2")
+        );
+        // Half-up, away from zero on both sides.
+        assert_eq!(conform_to_display_precision(dec("0.25"), 1), dec("0.3"));
+        assert_eq!(conform_to_display_precision(dec("-0.25"), 1), dec("-0.3"));
+        // Trailing zeros are stripped.
+        assert_eq!(
+            conform_to_display_precision(dec("0.27690"), 5).to_string(),
+            "0.2769"
+        );
+        // Already-conforming values pass through.
+        assert_eq!(conform_to_display_precision(dec("42"), 0), dec("42"));
+    }
+
+    #[test]
+    fn validate_trailing_distance_checks_each_known_constraint() {
+        let raw = dec("0.27690123456789012345");
+        assert_eq!(
+            validate_trailing_distance(raw, Some(5), None, None),
+            Err(TrailingDistanceError::TooPrecise {
+                distance: raw,
+                precision: 5
+            })
+        );
+        assert_eq!(
+            validate_trailing_distance(Decimal::ZERO, Some(5), None, None),
+            Err(TrailingDistanceError::NonPositive {
+                distance: Decimal::ZERO
+            })
+        );
+        assert_eq!(
+            validate_trailing_distance(dec("0.0001"), Some(5), Some(dec("0.0005")), None),
+            Err(TrailingDistanceError::BelowMinimum {
+                distance: dec("0.0001"),
+                minimum: dec("0.0005")
+            })
+        );
+        assert_eq!(
+            validate_trailing_distance(dec("1.4"), Some(5), None, Some(dec("1.0"))),
+            Err(TrailingDistanceError::AboveMaximum {
+                distance: dec("1.4"),
+                maximum: dec("1.0")
+            })
+        );
+        // Conforming and in-bounds: accepted.
+        assert_eq!(
+            validate_trailing_distance(
+                dec("0.2769"),
+                Some(5),
+                Some(dec("0.0005")),
+                Some(dec("1.0"))
+            ),
+            Ok(())
+        );
+        // A stored trailing zero is not extra precision: 0.27690 has 4
+        // significant decimals.
+        assert_eq!(
+            validate_trailing_distance(dec("0.27690"), Some(4), None, None),
+            Ok(())
+        );
+        // Absent metadata skips everything but positivity.
+        assert_eq!(validate_trailing_distance(raw, None, None, None), Ok(()));
+        assert_eq!(
+            validate_trailing_distance(dec("-1"), None, None, None),
+            Err(TrailingDistanceError::NonPositive {
+                distance: dec("-1")
+            })
+        );
+    }
+
+    #[test]
+    fn trailing_distance_errors_name_the_constraint() {
+        let raw = dec("0.276901");
+        let err = validate_trailing_distance(raw, Some(5), None, None).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "trailing stop distance 0.276901 carries more decimals than the display precision 5"
+        );
+        let err =
+            validate_trailing_distance(dec("0.0001"), None, Some(dec("0.0005")), None).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("below the instrument minimum 0.0005")
+        );
+        let err = validate_trailing_distance(dec("1.4"), None, None, Some(dec("1.0"))).unwrap_err();
+        assert!(err.to_string().contains("above the instrument maximum 1.0"));
+        let err = validate_trailing_distance(Decimal::ZERO, None, None, None).unwrap_err();
+        assert!(err.to_string().contains("must be positive"));
+    }
+
+    #[test]
+    fn instrument_methods_use_the_instruments_own_metadata() {
+        let xcu = xcu_usd();
+        assert_eq!(
+            xcu.round_to_display_precision(dec("0.27690123456789012345")),
+            Some(dec("0.2769"))
+        );
+        assert_eq!(xcu.validate_trailing_distance(dec("0.2769")), Ok(()));
+        assert_eq!(
+            xcu.validate_trailing_distance(dec("1.4")),
+            Err(TrailingDistanceError::AboveMaximum {
+                distance: dec("1.4"),
+                maximum: dec("1.0")
+            })
+        );
+        // Metadata-free instrument: rounding is unavailable, validation
+        // degrades to the positivity check.
+        let bare: Instrument = serde_json::from_str(r#"{"name": "EUR_USD"}"#).unwrap();
+        assert_eq!(bare.round_to_display_precision(dec("1.23456789")), None);
+        assert_eq!(bare.validate_trailing_distance(dec("1.23456789")), Ok(()));
+        // A nonsensical negative precision is treated as absent, not a panic.
+        let odd: Instrument =
+            serde_json::from_str(r#"{"name": "EUR_USD", "displayPrecision": -1}"#).unwrap();
+        assert_eq!(odd.round_to_display_precision(dec("1.5")), None);
+        assert_eq!(odd.validate_trailing_distance(dec("1.23456789")), Ok(()));
     }
 
     #[test]
