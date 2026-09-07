@@ -73,6 +73,46 @@ impl Error {
     pub fn is_rate_limited(&self) -> bool {
         self.status() == Some(StatusCode::TOO_MANY_REQUESTS)
     }
+
+    /// Whether retrying the operation could plausibly succeed.
+    ///
+    /// This is the classification the SDK itself applies — to stream
+    /// reconnects and to [`retry`](crate::retry()) — so client code can reuse
+    /// one policy instead of hand-rolling its own status matching:
+    ///
+    /// | Error | Verdict | Why |
+    /// |---|---|---|
+    /// | [`Api`](Error::Api) 5xx | transient | an OANDA or edge outage; a Cloudflare `520` at a weekend is the common case |
+    /// | [`Api`](Error::Api) 429 | transient | rate limited — back off and try again |
+    /// | [`Api`](Error::Api) 408 | transient | the server timed the request out |
+    /// | [`Api`](Error::Api) other 4xx | fatal | a bad token, account or request; a retry repeats it verbatim |
+    /// | [`Transport`](Error::Transport) | transient | connection, TLS, DNS or timeout failure |
+    /// | [`Stream`](Error::Stream) | transient | the connection misbehaved, not the request |
+    /// | [`Decode`](Error::Decode) | fatal | the payload does not match the model; the same bytes come back |
+    /// | [`Config`](Error::Config) | fatal | the caller built the client wrongly |
+    ///
+    /// Note that "fatal" is a judgement about the *error*, not an
+    /// instruction: [`FatalRetry`](crate::FatalRetry) lets a long-lived
+    /// worker retry these anyway for a bounded period, because OANDA has been
+    /// observed answering 4xx during maintenance windows.
+    pub fn is_transient(&self) -> bool {
+        match self {
+            Error::Transport(_) | Error::Stream(_) => true,
+            Error::Decode { .. } | Error::Config(_) => false,
+            Error::Api { status, .. } => {
+                status.is_server_error()
+                    || *status == StatusCode::TOO_MANY_REQUESTS
+                    || *status == StatusCode::REQUEST_TIMEOUT
+            }
+        }
+    }
+
+    /// Whether retrying the operation is pointless — the inverse of
+    /// [`is_transient`](Error::is_transient), spelled out for readability at
+    /// call sites that branch on failure.
+    pub fn is_fatal(&self) -> bool {
+        !self.is_transient()
+    }
 }
 
 /// The JSON body OANDA returns for error responses.
@@ -172,6 +212,42 @@ mod tests {
         assert_eq!(api_error(400).request_id(), Some("req-1"));
         assert_eq!(Error::Stream("x".into()).status(), None);
         assert_eq!(Error::Config("x".into()).request_id(), None);
+    }
+
+    /// The classification contract, spelled out status by status. This is the
+    /// single source of truth for stream reconnects and [`retry`], so a change
+    /// here changes when workers give up.
+    #[test]
+    fn transient_and_fatal_classification() {
+        // Retrying these can plausibly succeed.
+        for status in [408, 429, 500, 502, 503, 520, 599] {
+            let error = api_error(status);
+            assert!(error.is_transient(), "HTTP {status} must be transient");
+            assert!(!error.is_fatal(), "HTTP {status} must not be fatal");
+        }
+        // These repeat verbatim however often they are retried.
+        for status in [400, 401, 403, 404, 405, 409, 422] {
+            let error = api_error(status);
+            assert!(error.is_fatal(), "HTTP {status} must be fatal");
+            assert!(!error.is_transient(), "HTTP {status} must not be transient");
+        }
+        // 429 is transient *and* rate limiting — the two agree.
+        assert!(api_error(429).is_rate_limited() && api_error(429).is_transient());
+    }
+
+    #[test]
+    fn non_api_variants_are_classified() {
+        // A connection-level fault says nothing about the request itself.
+        assert!(Error::Stream("gap".into()).is_transient());
+        // Caller mistakes and schema mismatches never fix themselves.
+        assert!(Error::Config("bad".into()).is_fatal());
+        assert!(
+            Error::Decode {
+                source: serde_json::from_str::<u8>("x").unwrap_err(),
+                body: "x".into(),
+            }
+            .is_fatal()
+        );
     }
 
     #[test]

@@ -6,9 +6,9 @@ use std::time::Duration;
 
 use common::{ACCOUNT_ID, mock_client, standard_headers};
 use futures_util::StreamExt;
-use oanda_rs::Error;
 use oanda_rs::models::transaction::{Transaction, TransactionStreamItem};
 use oanda_rs::models::{InstrumentName, PriceStreamItem};
+use oanda_rs::{Error, FatalRetry, RetryPolicy};
 use serde_json::json;
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, ResponseTemplate};
@@ -201,6 +201,253 @@ async fn stream_connect_rejection_fails_fast() {
     }
 }
 
+/// The production scenario this policy exists for: a worker started while the
+/// venue is closed meets a 5xx from OANDA's edge (a Cloudflare 520). That used
+/// to abort `send()` outright, so a trader deployed at a weekend never traded
+/// on Monday. It must wait the outage out instead.
+#[tokio::test]
+async fn stream_connect_retries_a_transient_rejection() {
+    let (server, client) = mock_client().await;
+    let stream_path = format!("/accounts/{ACCOUNT_ID}/pricing/stream");
+    // First attempt: the weekend 520. Second: the venue is back.
+    Mock::given(method("GET"))
+        .and(path(stream_path.clone()))
+        .respond_with(ResponseTemplate::new(520).set_body_string("error code: 520"))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(stream_path))
+        .respond_with(ResponseTemplate::new(200).set_body_string(concat!(
+            r#"{"type":"HEARTBEAT","time":"2024-06-14T12:00:05.000000000Z"}"#,
+            "\n"
+        )))
+        .with_priority(2)
+        .mount(&server)
+        .await;
+
+    let stream = client
+        .pricing_stream(ACCOUNT_ID, ["EUR_USD"])
+        .backoff(Duration::from_millis(10), Duration::from_millis(50))
+        .send()
+        .await
+        .expect("a 520 must be retried, not surfaced");
+
+    let items: Vec<_> =
+        tokio::time::timeout(Duration::from_secs(10), stream.take(1).collect::<Vec<_>>())
+            .await
+            .expect("timed out waiting for the reconnected stream");
+    assert!(items[0].is_ok(), "expected a heartbeat after the retry");
+}
+
+/// The escape hatch for callers that want the old behaviour: with
+/// reconnection disabled, `send()` surfaces even a transient rejection.
+#[tokio::test]
+async fn stream_connect_fails_fast_when_reconnect_is_disabled() {
+    let (server, client) = mock_client().await;
+    Mock::given(method("GET"))
+        .and(path(format!("/accounts/{ACCOUNT_ID}/pricing/stream")))
+        .respond_with(ResponseTemplate::new(520).set_body_string("error code: 520"))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let error = client
+        .pricing_stream(ACCOUNT_ID, ["EUR_USD"])
+        .auto_reconnect(false)
+        .send()
+        .await
+        .unwrap_err();
+    assert_eq!(error.status().map(|s| s.as_u16()), Some(520));
+}
+
+/// A worker with a fatal-error budget rides out a 4xx at connect time too —
+/// OANDA has been observed answering those during maintenance.
+/// Mounts a transaction stream that yields transaction 6790 then EOF on the
+/// first connection, and transaction 6792 on every reconnect.
+async fn mount_reconnecting_transaction_stream(server: &wiremock::MockServer) {
+    let stream_path = format!("/accounts/{ACCOUNT_ID}/transactions/stream");
+    Mock::given(method("GET"))
+        .and(path(stream_path.clone()))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(
+            concat!(
+                r#"{"type":"ORDER_FILL","id":"6790","orderID":"6789"}"#,
+                "\n"
+            ),
+            "application/octet-stream",
+        ))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(stream_path))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(
+            concat!(
+                r#"{"type":"MARKET_ORDER","id":"6792","instrument":"EUR_USD","units":"100"}"#,
+                "\n"
+            ),
+            "application/octet-stream",
+        ))
+        .with_priority(2)
+        .mount(server)
+        .await;
+}
+
+/// Mounts the back-fill endpoint: `first` for the first request (once,
+/// asserted), then transaction 6791 for every request after it.
+async fn mount_backfill(server: &wiremock::MockServer, first: ResponseTemplate) {
+    let backfill_path = format!("/accounts/{ACCOUNT_ID}/transactions/sinceid");
+    Mock::given(method("GET"))
+        .and(path(backfill_path.clone()))
+        .and(query_param("id", "6790"))
+        .respond_with(first)
+        .up_to_n_times(1)
+        .with_priority(1)
+        .expect(1)
+        .mount(server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(backfill_path))
+        .and(query_param("id", "6790"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "transactions": [{"type": "ORDER_CANCEL", "id": "6791", "orderID": "6789"}],
+            "lastTransactionID": "6791"
+        })))
+        .with_priority(2)
+        .mount(server)
+        .await;
+}
+
+fn transaction_ids(items: &[Result<TransactionStreamItem, Error>]) -> Vec<String> {
+    items
+        .iter()
+        .map(|item| match item {
+            Ok(TransactionStreamItem::Transaction(tx)) => tx.id().unwrap().as_str().to_owned(),
+            Ok(other) => panic!("unexpected item {other:?}"),
+            Err(error) => format!("err:{}", error.status().map_or(0, |s| s.as_u16())),
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn transaction_stream_backfill_rides_out_a_client_error_under_budget() {
+    // Found in production 2026-09-04: OANDA answered a 401 flicker, the
+    // stream rode it out under its budget, reconnected, and then the
+    // back-fill met the same 401 — on the plain request path — and surfaced
+    // it as an `Err` item. The back-fill must obey the stream's policy.
+    let (server, client) = mock_client().await;
+    mount_reconnecting_transaction_stream(&server).await;
+    mount_backfill(
+        &server,
+        ResponseTemplate::new(401).set_body_json(json!({"errorMessage": "flicker"})),
+    )
+    .await;
+
+    let stream = client
+        .transaction_stream(ACCOUNT_ID)
+        .backoff(Duration::from_millis(10), Duration::from_millis(50))
+        .fatal_retry(FatalRetry::Budget(Duration::from_secs(30)))
+        .send()
+        .await
+        .unwrap();
+
+    let items: Vec<_> =
+        tokio::time::timeout(Duration::from_secs(10), stream.take(3).collect::<Vec<_>>())
+            .await
+            .expect("timed out waiting for the backfilled stream");
+    assert_eq!(transaction_ids(&items), vec!["6790", "6791", "6792"]);
+}
+
+#[tokio::test]
+async fn transaction_stream_backfill_retries_a_transient_rejection() {
+    // A 5xx on the back-fill is retried on the default policy, like any
+    // other request; the gap is closed without the caller seeing an error.
+    let (server, client) = mock_client().await;
+    mount_reconnecting_transaction_stream(&server).await;
+    mount_backfill(&server, ResponseTemplate::new(503)).await;
+
+    let stream = client
+        .transaction_stream(ACCOUNT_ID)
+        .backoff(Duration::from_millis(10), Duration::from_millis(50))
+        .send()
+        .await
+        .unwrap();
+
+    let items: Vec<_> =
+        tokio::time::timeout(Duration::from_secs(10), stream.take(3).collect::<Vec<_>>())
+            .await
+            .expect("timed out waiting for the backfilled stream");
+    assert_eq!(transaction_ids(&items), vec!["6790", "6791", "6792"]);
+}
+
+#[tokio::test]
+async fn transaction_stream_backfill_gives_up_and_reports_the_gap_when_fail_fast() {
+    // Without a budget a 4xx on the back-fill is fatal for that request:
+    // the error is yielded once (so the caller knows a gap is possible), no
+    // second back-fill is attempted, and live data keeps flowing.
+    let (server, client) = mock_client().await;
+    mount_reconnecting_transaction_stream(&server).await;
+    mount_backfill(
+        &server,
+        ResponseTemplate::new(401).set_body_json(json!({"errorMessage": "nope"})),
+    )
+    .await;
+
+    let stream = client
+        .transaction_stream(ACCOUNT_ID)
+        .backoff(Duration::from_millis(10), Duration::from_millis(50))
+        .send()
+        .await
+        .unwrap();
+
+    let items: Vec<_> =
+        tokio::time::timeout(Duration::from_secs(10), stream.take(3).collect::<Vec<_>>())
+            .await
+            .expect("timed out waiting for the stream");
+    assert_eq!(transaction_ids(&items), vec!["6790", "err:401", "6792"]);
+    assert!(matches!(items[1], Err(Error::Api { .. })));
+}
+
+#[tokio::test]
+async fn stream_connect_budget_rides_out_a_client_error() {
+    let (server, client) = mock_client().await;
+    let stream_path = format!("/accounts/{ACCOUNT_ID}/transactions/stream");
+    Mock::given(method("GET"))
+        .and(path(stream_path.clone()))
+        .respond_with(ResponseTemplate::new(403).set_body_json(json!({"errorMessage": "nope"})))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(stream_path))
+        .respond_with(ResponseTemplate::new(200).set_body_string(concat!(
+            r#"{"type":"HEARTBEAT","time":"2024-06-14T12:00:05.000000000Z","lastTransactionID":"1"}"#,
+            "\n"
+        )))
+        .with_priority(2)
+        .mount(&server)
+        .await;
+
+    let stream = client
+        .transaction_stream(ACCOUNT_ID)
+        .backoff(Duration::from_millis(10), Duration::from_millis(50))
+        .fatal_retry(FatalRetry::Budget(Duration::from_secs(30)))
+        .send()
+        .await
+        .expect("the budget must carry a 403 through");
+
+    let items: Vec<_> =
+        tokio::time::timeout(Duration::from_secs(10), stream.take(1).collect::<Vec<_>>())
+            .await
+            .expect("timed out waiting for the stream");
+    assert!(items[0].is_ok());
+}
+
 #[tokio::test]
 async fn stream_malformed_line_is_reported_but_not_fatal() {
     let (server, client) = mock_client().await;
@@ -266,13 +513,17 @@ async fn stream_builders_accept_full_config_and_expose_stats() {
     assert_eq!(prices.stats().reconnects, 0);
     assert!(format!("{prices:?}").contains("PricingStream"));
 
+    // The whole policy can also be supplied at once, rather than field by
+    // field, so one policy can be shared across streams and plain requests.
+    let policy = RetryPolicy::default()
+        .backoff(Duration::from_millis(10), Duration::from_millis(100))
+        .reset_after(Duration::from_secs(1))
+        .max_attempts(1);
     let mut transactions = client
         .transaction_stream(ACCOUNT_ID)
         .auto_reconnect(true)
         .heartbeat_timeout(Duration::from_secs(30))
-        .backoff(Duration::from_millis(10), Duration::from_millis(100))
-        .backoff_reset_after(Duration::from_secs(1))
-        .max_reconnect_attempts(1)
+        .retry_policy(policy)
         .send()
         .await
         .unwrap();

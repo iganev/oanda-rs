@@ -4,7 +4,6 @@
 use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::Duration;
 
 use bytes::Bytes;
 use futures_core::Stream;
@@ -16,6 +15,7 @@ use tokio::time::{Instant, Sleep};
 use super::StreamConfig;
 use super::json_lines::JsonLines;
 use crate::error::Error;
+use crate::retry::{Backoff, Decision};
 
 pub(crate) type ByteStream = BoxStream<'static, reqwest::Result<Bytes>>;
 type Lines<T> = JsonLines<ByteStream, T>;
@@ -55,6 +55,14 @@ pub struct StreamStats {
     pub reconnects: u64,
     /// Number of failed connection attempts since the stream was created.
     pub failed_attempts: u64,
+    /// Number of times an error that [`Error::is_fatal`] was retried anyway
+    /// under [`FatalRetry::Budget`](crate::FatalRetry::Budget).
+    ///
+    /// Always zero under the default [`FailFast`](crate::FatalRetry::FailFast).
+    /// A rising count means the stream is surviving on borrowed time — the
+    /// credential or account may genuinely be gone — so it is worth alerting
+    /// on rather than only logging.
+    pub fatal_retries: u64,
 }
 
 enum State<T> {
@@ -80,27 +88,25 @@ pub(crate) struct ManagedStream<K: StreamKind> {
     config: StreamConfig,
     state: State<K::Item>,
     stats: StreamStats,
-    attempts_since_success: u32,
-    current_delay: Duration,
+    backoff: Backoff,
     connected_at: Option<Instant>,
 }
 
 impl<K: StreamKind> ManagedStream<K> {
     /// Wraps an already-established connection (the initial connect is
-    /// performed by the endpoint builder so connection errors surface at
-    /// `send()`).
+    /// performed by the endpoint builder, which applies the same retry policy,
+    /// so a fatal rejection still surfaces at `send()`).
     pub(crate) fn new(kind: K, config: StreamConfig, initial: ByteStream) -> Self {
         let heartbeat_timeout = config.heartbeat_timeout;
         ManagedStream {
             kind,
-            current_delay: config.backoff_initial,
+            backoff: Backoff::new(config.retry),
             config,
             state: State::Streaming {
                 lines: JsonLines::new(initial),
                 watchdog: Box::pin(tokio::time::sleep(heartbeat_timeout)),
             },
             stats: StreamStats::default(),
-            attempts_since_success: 0,
             connected_at: Some(Instant::now()),
         }
     }
@@ -121,11 +127,10 @@ impl<K: StreamKind> ManagedStream<K> {
         }
         // A connection that stayed healthy long enough resets the backoff;
         // one that died right after connecting keeps escalating it.
-        if let Some(connected_at) = self.connected_at.take() {
-            if connected_at.elapsed() >= self.config.backoff_reset_after {
-                self.attempts_since_success = 0;
-                self.current_delay = self.config.backoff_initial;
-            }
+        if let Some(connected_at) = self.connected_at.take()
+            && connected_at.elapsed() >= self.config.retry.reset_after
+        {
+            self.backoff.succeeded();
         }
         self.schedule_reconnect(error)
     }
@@ -137,50 +142,31 @@ impl<K: StreamKind> ManagedStream<K> {
         #[cfg(feature = "tracing")]
         tracing::debug!(error = %error, "stream reconnect attempt failed");
 
-        if is_fatal(&error) {
-            self.state = State::Done;
-            return Some(Poll::Ready(Some(Err(error))));
-        }
         self.schedule_reconnect(Some(error))
     }
 
+    /// Applies the retry policy to a disconnect or a failed attempt: either
+    /// arms the reconnect timer or ends the stream. `None` means the
+    /// connection closed cleanly, which is always worth retrying.
     fn schedule_reconnect(&mut self, error: Option<Error>) -> Terminal<K::Item> {
-        if let Some(max) = self.config.max_reconnect_attempts {
-            if self.attempts_since_success >= max {
+        let decision = self.backoff.on_failure(error.as_ref());
+        self.stats.fatal_retries = self.backoff.fatal_retries();
+        match decision {
+            Decision::GiveUp => {
                 self.state = State::Done;
-                return Some(Poll::Ready(Some(Err(error.unwrap_or_else(|| {
+                Some(Poll::Ready(Some(Err(error.unwrap_or_else(|| {
                     Error::Stream("reconnect attempts exhausted".into())
-                })))));
+                })))))
+            }
+            Decision::Retry(delay) => {
+                #[cfg(feature = "tracing")]
+                tracing::debug!(delay = ?delay, "stream reconnect scheduled");
+
+                self.state = State::Sleeping(Box::pin(tokio::time::sleep(delay)));
+                None
             }
         }
-        self.attempts_since_success += 1;
-        let delay = jitter(self.current_delay);
-        self.current_delay = (self.current_delay * 2).min(self.config.backoff_max);
-
-        #[cfg(feature = "tracing")]
-        tracing::debug!(delay = ?delay, attempt = self.attempts_since_success, "stream reconnect scheduled");
-
-        self.state = State::Sleeping(Box::pin(tokio::time::sleep(delay)));
-        None
     }
-}
-
-/// Only client-side errors are fatal; transport failures and server errors
-/// are worth retrying.
-fn is_fatal(error: &Error) -> bool {
-    match error {
-        Error::Api { status, .. } => status.is_client_error(),
-        Error::Config(_) => true,
-        _ => false,
-    }
-}
-
-/// Applies ±25% pseudo-random jitter so reconnecting clients don't
-/// synchronize.
-fn jitter(delay: Duration) -> Duration {
-    let nanos = Instant::now().elapsed().subsec_nanos() as u64 ^ delay.as_nanos() as u64;
-    let factor = 0.75 + (nanos % 1000) as f64 / 2000.0; // 0.75..=1.25
-    delay.mul_f64(factor)
 }
 
 impl<K: StreamKind> Stream for ManagedStream<K> {
@@ -319,6 +305,7 @@ mod tests {
     use super::*;
     use futures_util::StreamExt;
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     /// Scripted connection outcomes for driving the state machine.
     enum Outcome {
@@ -326,6 +313,9 @@ mod tests {
         Fail,
         /// Connection refused with a fatal (4xx) error.
         FailFatal,
+        /// Connection refused with a specific HTTP status, for asserting how
+        /// each class is classified.
+        FailStatus(u16),
         /// Connects; yields the chunks, then EOF.
         Chunks(Vec<&'static [u8]>),
         /// Connects; yields the chunks, then hangs forever.
@@ -363,6 +353,11 @@ mod tests {
             Outcome::Fail => Err(Error::Stream("connection refused".into())),
             Outcome::FailFatal => Err(Error::Api {
                 status: reqwest::StatusCode::UNAUTHORIZED,
+                request_id: None,
+                body: crate::error::ApiErrorBody::from_text("nope".into()),
+            }),
+            Outcome::FailStatus(status) => Err(Error::Api {
+                status: reqwest::StatusCode::from_u16(status).unwrap(),
                 request_id: None,
                 body: crate::error::ApiErrorBody::from_text("nope".into()),
             }),
@@ -429,7 +424,7 @@ mod tests {
         // max 10 attempts the stream must end with an error, and the gaps
         // between attempts must escalate 1s→2s→…→300s cap (±25% jitter).
         let mut cfg = config();
-        cfg.max_reconnect_attempts = Some(10);
+        cfg.retry.max_attempts = Some(10);
         let script = (0..10).map(|_| Outcome::Fail).collect();
         let (stream, connects) = managed(script, Outcome::Chunks(vec![]), cfg);
         let start = Instant::now();
@@ -471,7 +466,7 @@ mod tests {
             Outcome::Chunks(vec![b"{\"ok\":1}\n"]),
         ];
         let mut cfg = config();
-        cfg.max_reconnect_attempts = Some(100);
+        cfg.retry.max_attempts = Some(100);
         let (stream, connects) = managed(script, Outcome::Chunks(vec![]), cfg);
         // 13 heartbeats + 1 final item; stream keeps reconnecting after
         // the last EOF, so just take what we expect.
@@ -558,6 +553,144 @@ mod tests {
         let items: Vec<_> = stream.collect().await;
         assert_eq!(items.len(), 1);
         assert!(items[0].is_ok());
+        assert!(connects.lock().unwrap().is_empty(), "must not reconnect");
+    }
+
+    /// A rate limit is not a permanent rejection: OANDA's own limits are
+    /// per-IP, so a shared address can trip one at any time. Ending the
+    /// stream there would take a worker down for the rest of the day.
+    #[tokio::test(start_paused = true)]
+    async fn rate_limiting_reconnects_rather_than_ending_the_stream() {
+        let script = vec![
+            Outcome::FailStatus(429),
+            Outcome::Chunks(vec![b"{\"n\":1}\n"]),
+        ];
+        let (mut stream, connects) = managed(script, Outcome::Chunks(vec![]), config());
+        let first = stream.next().await.unwrap();
+        assert!(first.is_ok(), "429 must be retried, not fatal");
+        assert_eq!(connects.lock().unwrap().len(), 2);
+    }
+
+    /// Server-side failures are the weekend case: OANDA's edge answers 5xx
+    /// (a Cloudflare 520 in practice) while the venue is down.
+    #[tokio::test(start_paused = true)]
+    async fn server_errors_are_retried() {
+        let script = vec![
+            Outcome::FailStatus(520),
+            Outcome::FailStatus(503),
+            Outcome::Chunks(vec![b"{\"n\":1}\n"]),
+        ];
+        let (mut stream, connects) = managed(script, Outcome::Chunks(vec![]), config());
+        assert!(stream.next().await.unwrap().is_ok());
+        assert_eq!(connects.lock().unwrap().len(), 3);
+    }
+
+    /// Every other 4xx still ends the stream — retrying a revoked token or a
+    /// closed account only repeats the rejection.
+    #[tokio::test(start_paused = true)]
+    async fn other_client_errors_stay_fatal() {
+        for status in [400, 403, 404] {
+            let (stream, _) = managed(
+                vec![Outcome::FailStatus(status)],
+                Outcome::Chunks(vec![]),
+                config(),
+            );
+            let items: Vec<_> = stream.collect().await;
+            assert_eq!(items.len(), 1, "HTTP {status} must end the stream");
+            assert!(items[0].is_err(), "HTTP {status} must be fatal");
+        }
+    }
+
+    /// A fatal error on an *established* connection used to reconnect
+    /// forever, unlike the same error on connect. Both paths now share one
+    /// classification.
+    #[tokio::test(start_paused = true)]
+    async fn a_fatal_error_mid_stream_ends_it() {
+        // The initial connection is fine, then the reconnect is rejected for
+        // good: the stream must not spin.
+        let (stream, connects) = managed(
+            vec![Outcome::FailStatus(403)],
+            Outcome::Chunks(vec![b"{\"n\":1}\n"]),
+            config(),
+        );
+        let items: Vec<_> = stream.collect().await;
+        assert_eq!(items.len(), 2);
+        assert!(items[0].is_ok());
+        assert!(items[1].is_err());
+        assert_eq!(connects.lock().unwrap().len(), 1, "must stop reconnecting");
+    }
+
+    /// With a budget, a worker rides out maintenance that answers 4xx.
+    #[tokio::test(start_paused = true)]
+    async fn fatal_retry_budget_rides_out_a_4xx_and_counts_it() {
+        let mut cfg = config();
+        cfg.retry.fatal = crate::FatalRetry::Budget(Duration::from_secs(3600));
+        let script = vec![
+            Outcome::FailStatus(403),
+            Outcome::FailStatus(403),
+            Outcome::Chunks(vec![b"{\"n\":1}\n"]),
+        ];
+        let (mut stream, connects) = managed(script, Outcome::Chunks(vec![]), cfg);
+        let first = stream.next().await.unwrap();
+        assert!(first.is_ok(), "the budget must have carried it through");
+        assert_eq!(connects.lock().unwrap().len(), 3);
+        // The retries are reported, so an operator can alert on them.
+        assert_eq!(stream.stats().fatal_retries, 2);
+    }
+
+    /// ...but a genuinely dead credential still surfaces once the budget is
+    /// spent, rather than hiding forever.
+    #[tokio::test(start_paused = true)]
+    async fn fatal_retry_budget_eventually_gives_up() {
+        let mut cfg = config();
+        cfg.retry.fatal = crate::FatalRetry::Budget(Duration::from_secs(30));
+        // Far more attempts than the budget allows.
+        let script = (0..40).map(|_| Outcome::FailStatus(401)).collect();
+        let (stream, _) = managed(script, Outcome::Chunks(vec![]), cfg);
+        let items: Vec<_> = stream.collect().await;
+        assert_eq!(items.len(), 1);
+        let error = items.into_iter().next().unwrap().unwrap_err();
+        assert_eq!(
+            error.status().map(|s| s.as_u16()),
+            Some(401),
+            "the original rejection must reach the caller"
+        );
+    }
+
+    /// A clean EOF carries no error, so exhaustion has to synthesise one
+    /// rather than yield a silent end.
+    #[tokio::test(start_paused = true)]
+    async fn exhausting_attempts_after_a_clean_eof_reports_why() {
+        let mut cfg = config();
+        cfg.retry.max_attempts = Some(0);
+        // The initial connection EOFs immediately; no attempt is allowed.
+        let (stream, connects) = managed(vec![], Outcome::Chunks(vec![]), cfg);
+        let items: Vec<_> = stream.collect().await;
+        assert_eq!(items.len(), 1);
+        let error = items.into_iter().next().unwrap().unwrap_err();
+        assert!(
+            matches!(&error, Error::Stream(msg) if msg.contains("reconnect attempts exhausted")),
+            "unexpected error: {error:?}"
+        );
+        assert!(connects.lock().unwrap().is_empty());
+    }
+
+    /// With reconnection disabled, a stalled connection is terminal: the
+    /// watchdog's error is the caller's last item rather than a reconnect.
+    #[tokio::test(start_paused = true)]
+    async fn a_stale_connection_is_terminal_without_auto_reconnect() {
+        let mut cfg = config();
+        cfg.auto_reconnect = false;
+        let (stream, connects) =
+            managed(vec![], Outcome::ChunksThenHang(vec![b"{\"n\":1}\n"]), cfg);
+        let items: Vec<_> = stream.collect().await;
+        assert_eq!(items.len(), 2);
+        assert!(items[0].is_ok());
+        let error = items.into_iter().nth(1).unwrap().unwrap_err();
+        assert!(
+            matches!(&error, Error::Stream(msg) if msg.contains("stale")),
+            "unexpected error: {error:?}"
+        );
         assert!(connects.lock().unwrap().is_empty(), "must not reconnect");
     }
 

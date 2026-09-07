@@ -29,9 +29,16 @@ while let Some(item) = prices.next().await {
 # }
 ```
 
-`send()` fails fast if the initial connection is rejected (bad token, unknown
-account). After that, the stream **manages its own connection** — the `while let`
-loop above survives dropped connections, stale sockets, and OANDA's weekend
+`send()` fails fast if the initial connection is rejected for a reason retrying
+cannot fix — a bad token, an unknown account. A *transient* rejection (a 5xx
+from OANDA's edge while the venue is closed, a rate limit, a dropped
+connection) is retried on the same backoff the running stream uses, so a worker
+started **during** an outage waits for the venue to return instead of exiting.
+`auto_reconnect` is the single switch governing both the initial connect and
+later reconnects; disabling it restores unconditional fail-fast.
+
+After that, the stream **manages its own connection** — the `while let` loop
+above survives dropped connections, stale sockets, and OANDA's weekend
 maintenance windows without any extra code.
 
 ## What the managed stream does for you
@@ -56,27 +63,74 @@ connecting keeps escalating, so connect/die/connect churn cannot bypass the
 cooldown. Every attempt additionally passes through the client's shared
 2-connections-per-second limiter (OANDA's per-IP cap).
 
-HTTP 4xx rejections during reconnect are treated as fatal (retrying a revoked
-token is pointless): the stream yields one final `Err` and ends. Transport errors
-and 5xx responses are retried indefinitely by default.
+### Which failures are retried
+
+One classification — [`Error::is_transient`] — governs the initial connect,
+reconnects and mid-stream failures alike:
+
+| Failure | Retried? |
+|---|---|
+| Transport error (connection, TLS, DNS, timeout) | yes |
+| HTTP 5xx (including the Cloudflare `520` OANDA's edge serves at weekends) | yes |
+| HTTP 429 (rate limited) | yes — backing off is the correct response |
+| HTTP 408 (request timeout) | yes |
+| Any other 4xx (bad token, unknown account) | no — the stream ends with one final `Err` |
+
+Transient failures are retried indefinitely unless you set
+`max_reconnect_attempts`.
+
+### Riding out maintenance that answers 4xx
+
+OANDA has been observed serving *temporary* 4xx during maintenance, which the
+table above would treat as terminal. A long-lived worker can opt into retrying
+them anyway, for a bounded period:
+
+```rust,no_run
+# async fn run() -> Result<(), oanda_rs::Error> {
+# let client = oanda_rs::Client::new(oanda_rs::Environment::Practice, "t");
+use std::time::Duration;
+use oanda_rs::FatalRetry;
+
+let stream = client
+    .pricing_stream("101-004-1234567-001", ["EUR_USD"])
+    // Ride out a maintenance window, but still surface a genuinely revoked
+    // credential after six hours rather than retrying it forever.
+    .fatal_retry(FatalRetry::Budget(Duration::from_secs(6 * 3600)))
+    .send()
+    .await?;
+# Ok(())
+# }
+```
+
+The budget is measured from the first fatal error and **cleared by any
+successful connection**, so an unrelated failure later gets a full budget
+again. The cost is real: a token revoked at the start of the window stays
+hidden for its duration. Because of that, every such retry is logged at `WARN`
+(with the `tracing` feature) and counted in `stats().fatal_retries` — alert on
+that counter rather than discovering the problem when the budget expires.
 
 ### No data loss on the transaction stream
 
 The transaction stream remembers the last transaction ID it delivered. After every
 reconnect it first calls `GET .../transactions/sinceid` and yields the missed
 transactions **in order** before resuming live data, deduplicating any overlap.
-If the back-fill request itself fails, the stream yields that error (so you know
-a gap is possible) and continues streaming live data.
+The back-fill request obeys the stream's retry policy — backoff, attempt limit
+and [`FatalRetry`](#riding-out-maintenance-that-answers-4xx) budget alike — so a
+rejection the reconnect itself rode out cannot fail the back-fill. Only when the
+policy gives up does the stream yield that error (so you know a gap is possible)
+and continue streaming live data.
 
 The pricing stream instead reconnects with `snapshot=true`, so you immediately
 receive current prices for all subscribed instruments after a gap.
 
 ### Observability
 
-- `stream.stats()` returns the number of successful reconnects and failed
-  connection attempts.
+- `stream.stats()` returns the number of successful reconnects, failed
+  connection attempts, and fatal errors retried under a
+  [`FatalRetry::Budget`](#riding-out-maintenance-that-answers-4xx).
 - With the `tracing` feature enabled, connection loss, scheduled retries and
-  successful reconnects are logged at `DEBUG`.
+  successful reconnects are logged at `DEBUG`; a retried *fatal* error is
+  logged at `WARN`, since it means the stream is running on borrowed time.
 
 ## Tuning
 
@@ -107,9 +161,12 @@ then ends (or yields a single `Err`) on the first connection problem.
 | Item | Meaning | Stream continues? |
 |---|---|---|
 | `Err(Error::Decode { .. })` | One malformed line (raw body preserved) | yes |
-| `Err(Error::Api { .. })` (4xx) | Fatal rejection during reconnect | no |
-| `Err(...)` after back-fill | Back-fill failed; a gap is possible | yes |
+| `Err(Error::Api { .. })` (4xx other than 429/408) | Fatal rejection, on connect or mid-stream | no |
+| `Err(...)` after back-fill | Back-fill failed after exhausting the retry policy; a gap is possible | yes |
 | `Err(...)` with `auto_reconnect(false)` or exhausted attempts | Terminal | no |
+
+A fatal rejection ends the stream wherever it occurs — the connect path and an
+established connection obey the same rule.
 
 ## Limits to keep in mind
 

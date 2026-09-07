@@ -13,7 +13,12 @@
 //!   [`rust_decimal::Decimal`] newtypes (never floats).
 //! - **Streaming** — pricing and transaction streams are self-managing:
 //!   they detect stale connections via heartbeats, reconnect with capped
-//!   exponential backoff, and back-fill missed transactions.
+//!   exponential backoff (including the *initial* connect, so a worker
+//!   started during a weekend outage waits rather than exits), and back-fill
+//!   missed transactions.
+//! - **One retry policy** — [`Error::is_transient`] classifies failures and
+//!   [`RetryPolicy`]/[`retry`] applies backoff, so streams and plain requests
+//!   share the same rules instead of each caller inventing them.
 //!
 //! ## Quickstart
 //!
@@ -36,6 +41,7 @@
 mod client;
 mod error;
 mod rate_limit;
+mod retry;
 mod transport;
 
 pub mod endpoints;
@@ -45,3 +51,10 @@ pub mod streaming;
 
 pub use client::{Client, ClientBuilder, Environment};
 pub use error::{ApiErrorBody, Error};
+pub use retry::{FatalRetry, RetryPolicy, retry};
+
+/// The HTTP status type carried by [`Error::Api`].
+///
+/// Re-exported so matching on a status never requires depending on a
+/// version-matched `reqwest`/`http` yourself.
+pub use reqwest::StatusCode;

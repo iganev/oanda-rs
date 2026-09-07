@@ -105,6 +105,23 @@ Every method returns `Result<_, oanda_rs::Error>`:
   preserved for debugging.
 - `Error::Stream` / `Error::Config` — stream protocol violations / bad client setup.
 
+Rather than matching on statuses yourself, ask whether retrying could help.
+`error.is_transient()` is true for 5xx, 429, 408 and transport failures, false
+for other 4xx, decode failures and configuration mistakes; `error.is_fatal()`
+is its inverse. This is the same classification the SDK's streams use, and it
+drives `retry()`:
+
+```rust,no_run
+# async fn run() -> Result<(), oanda_rs::Error> {
+# let client = oanda_rs::Client::new(oanda_rs::Environment::Practice, "t");
+use oanda_rs::{RetryPolicy, retry};
+
+let accounts = retry(&RetryPolicy::default(), || client.list_accounts()).await?;
+# let _ = accounts;
+# Ok(())
+# }
+```
+
 ## 5. Numbers and timestamps
 
 OANDA encodes decimals as JSON strings. The SDK maps them to

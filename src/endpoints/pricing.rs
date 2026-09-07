@@ -5,9 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::client::Client;
 use crate::error::Error;
 use crate::models::{AccountId, ClientPrice, DateTime, HomeConversions, InstrumentName};
-use crate::streaming::{
-    PricingKind, PricingStream, StreamConfig, StreamKind, stream_config_setters,
-};
+use crate::streaming::{PricingKind, PricingStream, StreamConfig, stream_config_setters};
 
 impl Client {
     /// Get pricing information for a list of instruments within an
@@ -179,8 +177,14 @@ impl PricingStreamRequest {
 
     stream_config_setters!();
 
-    /// Connects and returns the managed stream. Fails fast when the
-    /// initial connection is rejected (e.g. bad token or account).
+    /// Connects and returns the managed stream.
+    ///
+    /// Fails fast when the initial connection is rejected for a reason a
+    /// retry cannot fix (bad token, unknown account). A transient rejection —
+    /// a 5xx from OANDA's edge while the venue is closed, a rate limit, a
+    /// dropped connection — is retried on the configured backoff instead, so
+    /// a stream opened during an outage waits rather than gives up. Disable
+    /// with [`auto_reconnect(false)`](Self::auto_reconnect).
     pub async fn send(self) -> Result<PricingStream, Error> {
         let mut kind = PricingKind {
             client: self.client,
@@ -188,7 +192,7 @@ impl PricingStreamRequest {
             instruments: super::accounts::join_names(&self.instruments),
             snapshot: self.snapshot,
         };
-        let initial = kind.connect(false).await?;
+        let initial = crate::streaming::connect_initial(&mut kind, &self.config).await?;
         Ok(PricingStream::new(kind, self.config, initial))
     }
 }

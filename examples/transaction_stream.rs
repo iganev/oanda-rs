@@ -1,6 +1,8 @@
 //! Streams the account's transactions. If the connection drops, the SDK
 //! reconnects with backoff and back-fills anything missed via
-//! `GET .../transactions/sinceid`, so no transaction is silently lost.
+//! `GET .../transactions/sinceid`, so no transaction is silently lost. The
+//! same backoff covers the first connection, so starting while OANDA is
+//! down waits for it to return instead of exiting.
 //!
 //! ```sh
 //! cargo run --example transaction_stream
@@ -32,7 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("♥ last transaction id: {:?}", hb.last_transaction_id);
             }
             Ok(_) => {}
-            Err(e) => eprintln!("stream error: {e}"),
+            // Fatal means this is the last item; transient means the SDK is
+            // already reconnecting behind the scenes.
+            Err(e) if e.is_fatal() => eprintln!("stream ended: {e}"),
+            Err(e) => eprintln!("transient stream error (reconnecting): {e}"),
         }
     }
     Ok(())
