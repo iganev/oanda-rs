@@ -263,8 +263,6 @@ async fn stream_connect_fails_fast_when_reconnect_is_disabled() {
     assert_eq!(error.status().map(|s| s.as_u16()), Some(520));
 }
 
-/// A worker with a fatal-error budget rides out a 4xx at connect time too —
-/// OANDA has been observed answering those during maintenance.
 /// Mounts a transaction stream that yields transaction 6790 then EOF on the
 /// first connection, and transaction 6792 on every reconnect.
 async fn mount_reconnecting_transaction_stream(server: &wiremock::MockServer) {
@@ -411,6 +409,8 @@ async fn transaction_stream_backfill_gives_up_and_reports_the_gap_when_fail_fast
     assert!(matches!(items[1], Err(Error::Api { .. })));
 }
 
+/// A worker with a fatal-error budget rides out a 4xx at connect time too —
+/// OANDA has been observed answering those during maintenance.
 #[tokio::test]
 async fn stream_connect_budget_rides_out_a_client_error() {
     let (server, client) = mock_client().await;
