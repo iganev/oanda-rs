@@ -4,7 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the crate is pre-1.0,
 so minor versions may contain breaking changes.
 
-## [Unreleased]
+## [0.2.2] - 2026-09-07
+
+### Added
+
+- `Instrument::round_to_display_precision` / `conform_to_display_precision`
+  and `Instrument::validate_trailing_distance` / `validate_trailing_distance`
+  (with `TrailingDistanceError`): a stop-loss or trailing distance that does
+  not conform to the instrument's `displayPrecision` and distance limits is
+  rejected by OANDA with an HTTP 400, so callers can conform and check a value
+  before sending the order.
 
 ### Fixed
 
